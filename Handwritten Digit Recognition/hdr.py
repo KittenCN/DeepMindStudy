@@ -31,7 +31,7 @@ class LeNet(paddle.nn.Layer):
         x = self.conv2(x)
         x = F.relu(x)
         x = self.max_pool2(x)
-        x = paddle.flatten(x, start_axis = 1, stop_asix = -1)
+        x = paddle.flatten(x, start_axis = 1, stop_axis = -1)
         x = self.linear1(x)
         x = F.relu(x)
         x = self.linear2(x)
@@ -40,7 +40,7 @@ class LeNet(paddle.nn.Layer):
         return x
 
 model = paddle.Model(LeNet())
-optim = paddle.optimizer.Adam(learning_rate = 0.001, Parameter = model.parameters())
+optim = paddle.optimizer.Adam(learning_rate = 0.001, parameters = model.parameters())
 
 model.prepare(
     optim,
