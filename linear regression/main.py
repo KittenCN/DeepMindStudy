@@ -1,7 +1,7 @@
 import random
 from typing import ForwardRef
 from torch.utils.data.dataset import TensorDataset
-from helper.aihelper import show_data
+import helper.aihelper as ai
 import torch
 import  torch.utils.data
 
@@ -20,7 +20,7 @@ if __name__ == "__main__":
     c = 25
     num = 1000
 
-    x = torch.randn(num).view(-1,1)
+    x = torch.randn(num).view(-1, 1)
     # hot_pixel = num / random.randint(0, 10)
     hot_pixel = 0
     y = a * x + b + hot_pixel
@@ -38,17 +38,21 @@ if __name__ == "__main__":
         loss_func = loss_func.cuda()
 
     for epoch in range(epochs):
+        lastepoch = -1
         for inputs, targets in data_loader:
             if(use_gpu):
                 inputs = inputs.cuda()
                 targets = targets.cuda()
             outputs = model(inputs)
             loss = loss_func(outputs, targets)
+            if epoch % 10 == 0 and epoch != lastepoch:
+                ai.show_data_cost(inputs, outputs, targets, loss, use_gpu)
+                lastepoch = epoch
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-        if epoch % 10 == 0:
-            print('epoch:', epoch, 'loss:', loss.item())
+        # if epoch % 10 == 0:
+            # print('epoch:', epoch, 'loss:', loss.item())
     
     print('a:', model.linear.weight.item())
     print('b:', model.linear.bias.item())
