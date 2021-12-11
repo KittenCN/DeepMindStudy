@@ -27,7 +27,7 @@ if __name__ == "__main__":
     dataset = TensorDataset(x, y)
 
     data_loader = torch.utils.data.DataLoader(dataset, shuffle=True, batch_size=32)
-    epochs = 10000
+    epochs = 1000
     lr = 1e-3
     model = linear_net()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -37,24 +37,28 @@ if __name__ == "__main__":
         model = model.cuda()
         loss_func = loss_func.cuda()
 
+    listloss = []
     for epoch in range(epochs):
-        lastepoch = -1
         for inputs, targets in data_loader:
             if(use_gpu):
                 inputs = inputs.cuda()
                 targets = targets.cuda()
             outputs = model(inputs)
             loss = loss_func(outputs, targets)
-            if epoch % 10 == 0 and epoch != lastepoch:
-                ai.show_data_cost(inputs, outputs, targets, loss, use_gpu)
-                lastepoch = epoch
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-        # if epoch % 10 == 0:
+        listloss.append(loss.item())
+        if epoch % 10 == 0:
             # print('epoch:', epoch, 'loss:', loss.item())
+            ai.show_data_cost(inputs, outputs, targets, loss, use_gpu)
     
     print('a:', model.linear.weight.item())
     print('b:', model.linear.bias.item())
     print(list(model.parameters()))
+
+    x_data = []
+    for i in range(len(listloss)):
+        x_data.append(i)
+    ai.show_data(x_data, listloss)
     

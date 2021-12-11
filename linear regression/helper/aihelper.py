@@ -11,6 +11,7 @@ def show_data_cost(x_data=[1, 2, 3], y_data=[1, 2, 3], prediction_data=[1, 2, 3]
         prediction_data = prediction_data.cpu().detach().numpy()
         loss = loss.cpu().detach().numpy()
     plt.scatter(x_data, y_data)
-    plt.plot(x_data, prediction_data,'r-',lw=5)
+    # plt.plot(x_data, prediction_data,'r-',lw=5)
+    plt.plot(x_data, prediction_data, color='k')
     plt.text(0.5,0,'Loss=%.4f'%loss, fontdict={'size':20,'color':'red'})
     plt.pause(0.1)#画的图只存在0.1秒
