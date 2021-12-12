@@ -3,16 +3,22 @@ from typing import ForwardRef
 from torch.utils.data.dataset import TensorDataset
 import helper.aihelper as ai
 import torch
-import  torch.utils.data
+import torch.utils.data
+import torch.nn.functional as F
 
 use_gpu = torch.cuda.is_available()
 
 class linear_net(torch.nn.Module):
     def __init__(self):
         super(linear_net, self).__init__()
-        self.linear = torch.nn.Linear(in_features=1, out_features=1)
+        # self.linear = torch.nn.Linear(in_features=1, out_features=1)
+        self.linear = torch.nn.Linear(in_features=1, out_features=16)
+        self.priedict = torch.nn.Linear(in_features=16, out_features=1)
     def forward(self, x):
-        return self.linear(x)
+        # return self.linear(x)
+        x = F.relu(self.linear(x))
+        x = self.priedict(x)
+        return x
 
 if __name__ == "__main__":
     a = 10
