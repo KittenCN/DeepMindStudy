@@ -34,11 +34,11 @@ if __name__ == "__main__":
     x = torch.randn(num).view(-1, 1)
     # hot_pixel = num / random.randint(0, 10)
     hot_pixel = 0
-    y = a * x + b + hot_pixel
+    y = a * x * x + b * x + c + hot_pixel
     dataset = TensorDataset(x, y)
 
     data_loader = torch.utils.data.DataLoader(dataset, shuffle=True, batch_size=32)
-    epochs = 500
+    epochs = 50
     lr = 1e-3
     model = linear_net()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -62,14 +62,14 @@ if __name__ == "__main__":
         listloss.append(loss.item())
         if epoch % 10 == 0:
             print('epoch:', epoch, 'loss:', loss.item())
-            # ai.show_data_cost(inputs, outputs, targets, loss, use_gpu)
+            ai.show_data_cost(inputs, outputs, targets, loss, use_gpu)
     
     # print('a:', model.linear.weight.item())
     # print('b:', model.linear.bias.item())
     print(list(model.parameters()))
     torch.save(model, "linear regression\model\model.pkl")
-    # x_data = []
-    # for i in range(len(listloss)):
-    #     x_data.append(i)
-    # ai.show_data(x_data, listloss)
+    x_data = []
+    for i in range(len(listloss)):
+        x_data.append(i)
+    ai.show_data(x_data, listloss)
     
