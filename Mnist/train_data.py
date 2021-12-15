@@ -7,8 +7,8 @@ from torchvision import datasets, transforms
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-train_dataset = datasets.MNIST(root='./data', train=True, transform=transforms.ToTensor(), download=True)
-test_dataset = datasets.MNIST(root='./data', train=False, transform=transforms.ToTensor())
+train_dataset = datasets.MNIST(root='Mnist\data', train=True, transform=transforms.ToTensor(), download=True)
+test_dataset = datasets.MNIST(root='Mnist\data', train=False, transform=transforms.ToTensor())
 train_loader = DataLoader(dataset = train_dataset, batch_size = 100, shuffle = True)
 test_loader = DataLoader(dataset = test_dataset, batch_size= 100, shuffle = True)
 
