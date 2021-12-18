@@ -54,14 +54,14 @@ if __name__ == "__main__":
         listloss.append(loss.item())
         if epoch % 10 == 0:
             print('epoch:', epoch, 'loss:', loss.item())
-            # ai.show_data_cost(inputs, outputs, targets, loss, use_gpu)
+            ai.show_data_cost(inputs, outputs, targets, loss, use_gpu)
     
     # print('a:', model.linear.weight.item())
     # print('b:', model.linear.bias.item())
     print(list(model.parameters()))
-    # torch.save(model, "linear regression\model\model.pkl")
-    # x_data = []
-    # for i in range(len(listloss)):
-    #     x_data.append(i)
-    # ai.show_data(x_data, listloss)
+    torch.save(model, "linear regression\model\model.pkl")
+    x_data = []
+    for i in range(len(listloss)):
+        x_data.append(i)
+    show_data(x_data, listloss)
     

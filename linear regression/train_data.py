@@ -10,20 +10,19 @@ use_gpu = torch.cuda.is_available()
 class linear_net(nn.Module):
     def __init__(self):
         super(linear_net, self).__init__()
-        # self.linear = nn.Linear(in_features=1, out_features=1)
-        self.fc1 = nn.Linear(in_features=1, out_features=16)
-        self.fc2 = nn.Linear(in_features=16, out_features=32)
-        self.fc3 = nn.Linear(in_features=32, out_features=1)
+        self.linear = nn.Linear(in_features=1, out_features=1)
+        # self.fc1 = nn.Linear(in_features=1, out_features=16)
+        # self.fc2 = nn.Linear(in_features=16, out_features=32)
+        # self.fc3 = nn.Linear(in_features=32, out_features=1)
 
     def forward(self, x):
-        # return self.linear(x) 
-        x = self.fc1(x)
-        x = F.relu(x)
-        x = self.fc2(x)
-        x = F.relu(x)
-        x = self.fc3(x)
+        return self.linear(x) 
+        # x = self.fc1(x)
+        # x = F.relu(x)
+        # x = self.fc2(x)
+        # x = F.relu(x)
+        # x = self.fc3(x)
         return x
-        
 
 if __name__ == "__main__":
     a = 10
