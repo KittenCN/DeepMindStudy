@@ -23,7 +23,6 @@ class linear_net(nn.Module):
         # x = F.relu(x)
         # x = self.fc3(x)
         return x
-
 if __name__ == "__main__":
     a = 10
     b = 15
