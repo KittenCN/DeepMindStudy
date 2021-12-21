@@ -32,7 +32,6 @@ class Net(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
-
         return x
 
 class FeatureExtractor(nn.Module):
@@ -46,15 +45,12 @@ class FeatureExtractor(nn.Module):
         for name, module in self.submodule._modules.items():
             if "fc1" in name: 
                 # x = x.view(x.size(0), -1)
-                x = x.view(-1, 16 * 53 * 53)
-            
+                x = x.view(-1, 16 * 53 * 53) 
             x = module(x)
             print(name)
-            if self.extracted_layers is None or name in self.extracted_layers and 'fc' not in name:
+            if self.extracted_layers is None or name in self.extracted_layers and 'fc' not in name:  # why exclude 'fc1'?
                 outputs[name] = x
-
         return outputs
-
 
 def get_picture(pic_name, transform):
     img = skimage.io.imread(pic_name)
@@ -66,16 +62,14 @@ def make_dirs(path):
     if os.path.exists(path) is False:
         os.makedirs(path)
 
-
 def get_feature():
     pic_dir = 'DisplayFeature/images/cat.4.jpg'
     transform = transforms.ToTensor()
-    img = get_picture(pic_dir, transform)
+    img = get_picture(pic_dir, transform)  # to tensor
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # 插入维度
-    img = img.unsqueeze(0)
+    img = img.unsqueeze(0)  # 224*224*3 -> 1*224*224*3
     img = img.to(device)
-    
     # net = models.resnet101().to(device)
     # net.load_state_dict(torch.load('DisplayFeature/model/model.pkl'))
     net = Net().to(device)
@@ -91,17 +85,14 @@ def get_feature():
         iter_range = features.shape[0]
         for i in range(iter_range):
             #plt.imshow(x[0].data.numpy()[0,i,:,:],cmap='jet')
-            if 'fc' in k:
+            if 'fc' in k:  # the same question: why exclude 'fc'
                 continue
-            
             if device.type == 'cuda':
                 features = features.cpu()
-            feature = features.data.numpy()
+            feature = features.data.numpy()  # tensor -> numpy
             feature_img = feature[i,:,:]
-            feature_img = np.asarray(feature_img * 224, dtype=np.uint8)
-            
+            feature_img = np.asarray(feature_img * 224, dtype=np.uint8)  # numpy -> uint8         
             dst_path = os.path.join(dst, k)
-            
             make_dirs(dst_path)
             feature_img = cv2.applyColorMap(feature_img, cv2.COLORMAP_JET)
             if feature_img.shape[0] < therd_size:
@@ -109,10 +100,8 @@ def get_feature():
                 tmp_img = feature_img.copy()
                 tmp_img = cv2.resize(tmp_img, (therd_size,therd_size), interpolation =  cv2.INTER_NEAREST)
                 cv2.imwrite(tmp_file, tmp_img)
-            
             dst_file = os.path.join(dst_path, str(i) + '.png')
             cv2.imwrite(dst_file, feature_img)
 
 if __name__ == '__main__':
     get_feature()
-
