@@ -1,4 +1,5 @@
 from __future__ import print_function, division
+import os.path
 import numpy as np
 import torch
 import torch.nn as nn
@@ -7,19 +8,19 @@ import torch.optim as optim
 from torch.autograd import Variable
 from torch.utils.data import Dataset
 from torchvision import transforms, datasets, models
+# from tqdm import trange
 
 # 配置参数
+pklfile = 'DogVsCat/model/model.pkl'
 random_state = 1
 torch.manual_seed(random_state)  # 设置随机数种子，确保结果可重复
 torch.cuda.manual_seed(random_state)
 torch.cuda.manual_seed_all(random_state)
 np.random.seed(random_state)
 # random.seed(random_state)
-
+use_gpu = torch.cuda.is_available()
 epochs = 10  # 训练次数
 batch_size = 4  # 批处理大小
-num_workers = 4  # 多线程的数目
-use_gpu = torch.cuda.is_available()
 
 # 对加载的图像作归一化处理， 并裁剪为[224x224x3]大小的图像
 data_transform = transforms.Compose([  # 将transforms作为一个整体来使用
@@ -31,11 +32,11 @@ data_transform = transforms.Compose([  # 将transforms作为一个整体来使�
 
 # 数据的批处理，尺寸大小为batch_size,
 # 在训练集中，shuffle 必须设置为True, 表示次序是随机的
-train_dataset = datasets.ImageFolder(root='cats_and_dogs_small/train/', transform=data_transform)
-train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+train_dataset = datasets.ImageFolder(root='DogVsCat/data/cats_and_dogs_small/train', transform=data_transform)
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
-test_dataset = datasets.ImageFolder(root='cats_and_dogs_small/test/', transform=data_transform)
-test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+test_dataset = datasets.ImageFolder(root='DogVsCat/data/cats_and_dogs_small/test', transform=data_transform)
+test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
 
 
 # 创建模型
@@ -59,18 +60,7 @@ class Net(nn.Module):
 
         return x
 
-
-# net = Net()
-
 # 加载resnet18 模型，
-net = models.resnet18(pretrained=False)
-num_ftrs = net.fc.in_features
-net.fc = nn.Linear(num_ftrs, 2)  # 更新resnet18模型的fc模型，
-
-if use_gpu:
-    net = net.cuda()
-print(net)
-
 '''
 Net (
   (conv1): Conv2d(3, 6, kernel_size=(5, 5), stride=(1, 1))
@@ -81,18 +71,28 @@ Net (
   (fc3): Linear (512 -> 2)
 )
 '''
+# net = models.resnet18(pretrained=False)
+# num_ftrs = net.fc.in_features
+# net.fc = nn.Linear(num_ftrs, 2)  # 更新resnet18模型的fc模型，
+net = Net()
+if os.path.exists(pklfile):
+    net.load_state_dict(torch.load(pklfile))
+
+if use_gpu:
+    net = net.cuda()
+print(net)
 
 # 定义loss和optimizer
 cirterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(net.parameters(), lr=0.0001, momentum=0.9)
 
 # 开始训练
-net.train()
+#net.train()
 for epoch in range(epochs):
     running_loss = 0.0
     train_correct = 0
     train_total = 0
-    for i, data in enumerate(train_loader, 0):
+    for i, data in enumerate(train_loader):
         inputs, train_labels = data
         if use_gpu:
             inputs, labels = Variable(inputs.cuda()), Variable(train_labels.cuda())
@@ -109,18 +109,19 @@ for epoch in range(epochs):
         loss.backward()
         optimizer.step()
 
-        running_loss += loss.data[0]
+        running_loss += loss.item()
         train_total += train_labels.size(0)
-
-    print('train %d epoch loss: %.3f  acc: %.3f ' % (
-    epoch + 1, running_loss / train_total, 100 * train_correct / train_total))
+        
+        if i % 10 == 0:
+            print('train epoch %d id %d epoch loss: %.3f  acc: %.3f ' % (epoch, i, running_loss / train_total, 100 * train_correct / train_total))
+        if i % 100 == 0:
+            torch.save(net.state_dict(), pklfile)
 
     # 模型测试
     correct = 0
     test_loss = 0.0
     test_total = 0
-    test_total = 0
-    net.eval()
+    # net.eval()
     for data in test_loader:
         images, labels = data
         if use_gpu:
@@ -134,4 +135,4 @@ for epoch in range(epochs):
         test_total += labels.size(0)
         correct += (predicted == labels.data).sum()
 
-    print('test  %d epoch loss: %.3f  acc: %.3f ' % (epoch + 1, test_loss / test_total, 100 * correct / test_total))
+    print('test  %d epoch loss: %.3f  acc: %.3f ' % (epoch, test_loss / test_total, 100 * correct / test_total))
