@@ -57,7 +57,7 @@ class mnist_net(nn.Module):
         # x = self.conv1(x)
         # x = x.view(-1, 128 * 14 * 14)
         # x = self.dense(x)
-        # return x
+        return x
 
 net = mnist_net().to(device)
 print(net)
