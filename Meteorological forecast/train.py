@@ -15,24 +15,14 @@ _db = db.Connect(db_path)
 class net(nn.Module):
     def __init__(self) -> None:
         super(net, self).__init__()
-        self.conv1 = nn.Conv1d(1, 64, 3, 1, 1)
-        self.conv2 = nn.Conv1d(64, 128, 3, 1, 1)
-        self.pool1 = nn.MaxPool1d(2, 2)
-        self.fc1 = nn.Linear(128 * 14 * 14, 1024)  
-        self.drop1 = nn.Dropout(p=0.5)
-        self.fc2 = nn.Linear(1024, 10)
+        self.fc1 = nn.Linear(3, 1024)
+        self.fc2 = nn.Linear(1024, 128)
+        self.fc3 = nn.Linear(128, 1)
     
     def forward(self, x):
-        x = self.conv1(x)
-        x = F.relu(x)
-        x = self.conv2(x)
-        x = F.relu(x)
-        x = self.pool1(x)
-        x = x.view(-1, 128 * 14 * 14)
-        x = self.fc1(x)
-        x = F.relu(x)
-        x = self.drop1(x)
-        x = self.fc2(x)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
         return x
 
 def checkdata(num):
@@ -56,14 +46,14 @@ if __name__ == "__main__":
         tempdt.append(float(checkdata(int(dt[6])) / 10))
         ori_in_date.append(tempdt)
     _db.close()
-    del ori_in_date[-1]
-    del ori_out_data[0]
-    in_data = torch.from_numpy(np.array(ori_in_date)).float().view(-1,3)
-    out_data = torch.from_numpy(np.array(ori_out_data)).float().view(-1,1)
+    # del ori_in_date[-1]
+    # del ori_out_data[0]
+    in_data = torch.from_numpy(np.array(ori_in_date)).float()
+    out_data = torch.from_numpy(np.array(ori_out_data)).float()
     dataset = TensorDataset(in_data, out_data)
-    data_loader = DataLoader(dataset, batch_size=8)
+    data_loader = DataLoader(dataset, batch_size=16)
     epochs = 1000
-    lr = 0.1
+    lr = 0.001
     model = net().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     loss_func = nn.MSELoss().to(device)
