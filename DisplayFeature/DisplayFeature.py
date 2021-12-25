@@ -18,9 +18,9 @@ import cv2
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(3, 6, 5)  # 224*224*3 -> 224*224*6
-        self.maxpool = nn.MaxPool2d(2, 2)  # 224*224*6 -> 112*112*6
-        self.conv2 = nn.Conv2d(6, 16, 5)  # 112*112*6 -> 112*112*16
+        self.conv1 = nn.Conv2d(3, 6, 5)  # 224*224*3 -> 220*220*6
+        self.maxpool = nn.MaxPool2d(2, 2)  # 220*220*6 -> 110*110*6
+        self.conv2 = nn.Conv2d(6, 16, 5)  # 110*110*6 -> 106*106*16
         self.fc1 = nn.Linear(16 * 53 * 53, 1024)  # 16*53*53 -> 1024
         self.fc2 = nn.Linear(1024, 512)  # 1024 -> 512
         self.fc3 = nn.Linear(512, 2)  # 512 -> 2
@@ -28,7 +28,7 @@ class Net(nn.Module):
     def forward(self, x):
         x = self.maxpool(F.relu(self.conv1(x)))
         x = self.maxpool(F.relu(self.conv2(x)))
-        x = x.view(-1, 16 * 53 * 53)  # 112*112*16 -> 16*53*53
+        x = x.view(-1, 16 * 53 * 53)  # 106*106*16 -> 16*53*53
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
@@ -73,7 +73,8 @@ def get_feature():
     # net = models.resnet101().to(device)
     # net.load_state_dict(torch.load('DisplayFeature/model/model.pkl'))
     net = Net().to(device)
-    net.load_state_dict(torch.load('DisplayFeature/model/model.pkl'))
+    net.load_state_dict(torch.load('DisplayFeature/model/model100.pkl'))
+    net.eval()
     exact_list = None
     dst = 'DisplayFeature/features'
     therd_size = 224

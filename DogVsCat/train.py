@@ -1,4 +1,3 @@
-from __future__ import print_function, division
 import os.path
 import numpy as np
 import torch
@@ -20,7 +19,7 @@ np.random.seed(random_state)
 # random.seed(random_state)
 use_gpu = torch.cuda.is_available()
 epochs = 10  # 训练次数
-batch_size = 4  # 批处理大小
+batch_size = 16  # 批处理大小
 
 # 对加载的图像作归一化处理， 并裁剪为[224x224x3]大小的图像
 data_transform = transforms.Compose([  # 将transforms作为一个整体来使用
@@ -77,6 +76,7 @@ Net (
 net = Net()
 if os.path.exists(pklfile):
     net.load_state_dict(torch.load(pklfile))
+    net.eval()
 
 if use_gpu:
     net = net.cuda()
@@ -84,7 +84,7 @@ print(net)
 
 # 定义loss和optimizer
 cirterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(net.parameters(), lr=0.0001, momentum=0.9)
+optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
 # 开始训练
 #net.train()
