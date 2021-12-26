@@ -43,21 +43,21 @@ class config:
 
     # 将数据集保存在内存中还是磁盘中
     # 小型数据集可以整个载入内存加快速度
-    read_from = "Memory"
-    # read_from = "Disk"
+    # read_from = "Memory"
+    read_from = "Disk"
 
     # 保存模型参数文件的路径
-    G_model_path = "emoji/model/G_model.pth"
-    D_model_global_path = "emoji/model/D_model_global.pth"
-    D_model_patch_path = "emoji/model/D_model_patch.pth"
+    G_model_path = "model/G_model.pth"
+    D_model_global_path = "model/D_model_global.pth"
+    D_model_patch_path = "model/D_model_patch.pth"
 
     # 保存优化器参数文件的路径
-    G_optimizer_path = "emoji/model/G_optimizer.pth"
-    D_optimizer_global_path = "emoji/model/D_optimizer_global.pth"
-    D_optimizer_patch_path = "emoji/model/D_optimizer_patch.pth"
+    G_optimizer_path = "model/G_optimizer.pth"
+    D_optimizer_global_path = "model/D_optimizer_global.pth"
+    D_optimizer_patch_path = "model/D_optimizer_patch.pth"
 
     # 保存当前保存模型的历史总计训练epoch数
-    epoch_record_path = "emoji/model/epoch_count.pkl"
+    epoch_record_path = "model/epoch_count.pkl"
 
     # 当连接大容量移动硬盘时，对每个版本文件都进行单独备份，以方便回退历史版本
     # 如果这个路径不存在，则什么都不做
@@ -71,13 +71,13 @@ class config:
     criterion = nn.BCEWithLogitsLoss()
 
     # 多少个epoch之后保存一次模型
-    save_step = 10
+    save_step = 1
 
     # ------------------------------------路径配置------------------------------------
     # 数据集来源
-    img_path = "emoji/data/train/"
+    img_path = "data/train/"
     # 输出图片的文件夹路径
-    output_path = "emoji/model/output_images/"
+    output_path = "model/output_images/"
 
     # 如果继续训练，则读取之前进行过多少次epoch的训练
     if from_old_model:
