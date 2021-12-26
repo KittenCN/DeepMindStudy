@@ -33,7 +33,7 @@ class config:
     save_img_size = 64
 
     # 训练图片输入分辨率，在训练前都预处理完成缩放
-    img_size = 512
+    img_size = 96
 
     # 配置喂入生成器的随机正态分布种子数有多少维（如果改动，需要在model中修改网络对应参数）
     img_seed_dim = 128
@@ -75,9 +75,9 @@ class config:
 
     # ------------------------------------路径配置------------------------------------
     # 数据集来源
-    img_path = "train_images/"
+    img_path = "emoji/data/train/"
     # 输出图片的文件夹路径
-    output_path = "output_images/"
+    output_path = "emoji/model/output_images/"
 
     # 如果继续训练，则读取之前进行过多少次epoch的训练
     if from_old_model:

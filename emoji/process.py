@@ -5,7 +5,7 @@ from PIL import Image
 img_size = 512
 
 # 数据集来源
-img_path = "emoji\data\train"
+img_path = "emoji/data/train"
 
 for path, dirs, files in os.walk(img_path, topdown=False):
     file_list = list(files)
