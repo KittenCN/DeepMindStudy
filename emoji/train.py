@@ -27,13 +27,13 @@ class config:
     # 运行多少个epoch之后停止
     epochs = 20000
     # 配置batch size
-    batchSize = 8
+    batchSize = 32
 
     # 每次保存模型时输出多少张样图
     save_img_size = 64
 
     # 训练图片输入分辨率，在训练前都预处理完成缩放
-    img_size = 96
+    img_size = 512
 
     # 配置喂入生成器的随机正态分布种子数有多少维（如果改动，需要在model中修改网络对应参数）
     img_seed_dim = 128
