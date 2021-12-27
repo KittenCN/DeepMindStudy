@@ -30,8 +30,9 @@ if __name__ == '__main__':
     # pressure = float(input("Please input pressure: "))
     humidity = float(input("Please input humidity: "))
     temp = float(input("Please input temperature: "))
+    pressure = float(input("Please input pressure: "))
     model = torch.load("Meteorological forecast/model/model.pkl")
-    x = [[RP(temp, humidity), temp]]
+    x = [[temp, humidity, pressure, RP(temp, humidity)]]
     x = torch.from_numpy(np.array(x)).float()
     if use_gpu:
         x = x.cuda()

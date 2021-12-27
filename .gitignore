@@ -108,9 +108,6 @@ test/
 test
 train/
 train
-.jpg
-.jpeg
-.png
 data/
 data
 .vscode
@@ -118,6 +115,16 @@ data
 .DS_Store
 
 # custom
+*.old
+*.bak
+*.doc
+*.docx
+*.xls
+*.xlsx
+*.csv
+*.jpg
+*.jpeg
+*.png
 *.pkl
 *.pkl.json
 *.log.json

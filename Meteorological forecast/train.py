@@ -18,7 +18,7 @@ pklfile = "Meteorological forecast/model/model.pkl"
 class net(nn.Module):
     def __init__(self) -> None:
         super(net, self).__init__()
-        self.fc1 = nn.Linear(2, 1024)
+        self.fc1 = nn.Linear(4, 1024)
         self.fc2 = nn.Linear(1024, 128)
         self.fc3 = nn.Linear(128, 1)
     
@@ -82,6 +82,8 @@ if __name__ == "__main__":
             continue
         tempdt = []
         tempdt.append(float(int(dt.avg_temp)) / 10)
+        tempdt.append(float(int(dt.avg_humidity)))
+        tempdt.append(float(int(dt.avg_pressure)) / 100)
         tempdt.append(RP(float(int(dt.avg_temp)) / 10, float(int(dt.avg_humidity))))
         ori_in_date.append(tempdt)    
     _db.close()
@@ -91,7 +93,7 @@ if __name__ == "__main__":
     out_data = torch.from_numpy(np.array(ori_out_data)).float().to(device)
     dataset = TensorDataset(in_data, out_data)
     data_loader = DataLoader(dataset, batch_size=128, shuffle=True)
-    epochs = 100000
+    epochs = 10000
     lr = 0.0001
     if os.path.exists(pklfile):
         model = torch.load(pklfile).to(device)
@@ -112,5 +114,5 @@ if __name__ == "__main__":
             optimizer.step()
         if epoch % 10 == 0:
             print('epoch:', epoch, 'loss:', loss.item())
-        if epoch % 1000 == 0:
+        if epoch % 1000 == 0 and epoch != 0:
             torch.save(model, pklfile)

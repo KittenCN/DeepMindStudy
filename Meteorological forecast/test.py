@@ -32,7 +32,7 @@ class metedata:
 class net(nn.Module):
     def __init__(self) -> None:
         super(net, self).__init__()
-        self.fc1 = nn.Linear(2, 1024)
+        self.fc1 = nn.Linear(4, 1024)
         self.fc2 = nn.Linear(1024, 128)
         self.fc3 = nn.Linear(128, 1)
     
@@ -88,6 +88,8 @@ if __name__ == '__main__':
             continue
         tempdt = []
         tempdt.append(float(int(dt.avg_temp)) / 10)
+        tempdt.append(float(int(dt.avg_humidity)))
+        tempdt.append(float(int(dt.avg_pressure)) / 100)
         tempdt.append(RP(float(int(dt.avg_temp)) / 10, float(int(dt.avg_humidity))))
         ori_in_date.append(tempdt)    
     _db.close()
