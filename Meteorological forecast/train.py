@@ -40,48 +40,58 @@ def checkdata(num):
         return False
     return True
 
+class rainfall:
+    def __init__(self, id, allday_rainfall):
+        self.id = id
+        self.allday_rainfall = allday_rainfall
+
+class metedata:
+    def __init__(self, id, avg_temp, avg_humidity, avg_pressure):
+        self.id = id
+        self.avg_temp = avg_temp
+        self.avg_humidity = avg_humidity
+        self.avg_pressure = avg_pressure
+
 if __name__ == "__main__":
-    strSQL1 = "select a.locationID, a.year, a.month, a.day, a.allday_rainfall from pre a inner join rhu b inner join tem c on a.locationID = b.locationID and a.locationID = c.locationID and a.year = b.year and a.year = c.year and a.month = b.month and a.month = c.month and a.day = b.day and a.day = c.day where a.locationID = 58362 order by a.year, a.month, a.day"
-    _datas1 = _db.query(strSQL1, True)
-    strSQL2 = "select a.locationID, a.year, a.month, a.day, a.avg_pressure, b.avg_humidity, c.avg_temp  from prs a inner join rhu b inner join tem c on a.locationID = b.locationID and a.locationID = c.locationID and a.year = b.year and a.year = c.year and a.month = b.month and a.month = c.month and a.day = b.day and a.day = c.day where a.locationID = 58362 order by a.year, a.month, a.day"
-    _datas2 = _db.query(strSQL2, True)
     unvalidID = []
-    for i, dt in enumerate(_datas1):
+    rainfalllist = []
+    metedatalist = []
+    strSQL = "select a.locationID, a.year, a.month, a.day, a.allday_rainfall from pre a inner join rhu b inner join tem c on a.locationID = b.locationID and a.locationID = c.locationID and a.year = b.year and a.year = c.year and a.month = b.month and a.month = c.month and a.day = b.day and a.day = c.day where a.locationID = 58362 order by a.year, a.month, a.day"
+    _datas = _db.query(strSQL, True)
+    for i, dt in enumerate(_datas):
         if checkdata(int(dt[4])) == False and i not in unvalidID:
             unvalidID.append(i)
-    for i, dt in enumerate(_datas2):
+        rainfalllist.append(rainfall(i, dt[4])) 
+    strSQL = "select a.locationID, a.year, a.month, a.day, a.avg_pressure, b.avg_humidity, c.avg_temp  from prs a inner join rhu b inner join tem c on a.locationID = b.locationID and a.locationID = c.locationID and a.year = b.year and a.year = c.year and a.month = b.month and a.month = c.month and a.day = b.day and a.day = c.day where a.locationID = 58362 order by a.year, a.month, a.day"
+    _datas = _db.query(strSQL, True)
+    for i, dt in enumerate(_datas):
         if (checkdata(int(dt[4])) == False or checkdata(int(dt[5])) == False or checkdata(int(dt[6])) == False) and i not in unvalidID:
             unvalidID.append(i)
-    trSQL1 = "select a.locationID, a.year, a.month, a.day, a.allday_rainfall from pre a inner join rhu b inner join tem c on a.locationID = b.locationID and a.locationID = c.locationID and a.year = b.year and a.year = c.year and a.month = b.month and a.month = c.month and a.day = b.day and a.day = c.day where a.locationID = 58362 order by a.year, a.month, a.day"
-    _datas1 = _db.query(strSQL1, True)
-    strSQL2 = "select a.locationID, a.year, a.month, a.day, a.avg_pressure, b.avg_humidity, c.avg_temp  from prs a inner join rhu b inner join tem c on a.locationID = b.locationID and a.locationID = c.locationID and a.year = b.year and a.year = c.year and a.month = b.month and a.month = c.month and a.day = b.day and a.day = c.day where a.locationID = 58362 order by a.year, a.month, a.day"
-    _datas2 = _db.query(strSQL2, True)
-    for i, dt in enumerate(_datas1):
+        metedatalist.append(metedata(i, dt[6], dt[5], dt[4]))
+    for i, dt in enumerate(rainfalllist):
         if i in unvalidID:
             continue
         tempdt = []
-        if int(dt[4]) > 0:
+        if int(dt.allday_rainfall) > 0:
             tempdt.append(1)
         else:
             tempdt.append(0)
         ori_out_data.append(tempdt)
-    for i, dt in enumerate(_datas2):
+    for i, dt in enumerate(metedatalist):
         if i in unvalidID:
             continue
         tempdt = []
-        # tempdt.append(float(checkdata(int(dt[4])) / 100))
-        # tempdt.append(float(checkdata(int(dt[5])) / 100))
-        tempdt.append(float(int(dt[6])) / 10)
-        tempdt.append(RP(float(int(dt[6])) / 10, float(int(dt[5]))))
+        tempdt.append(float(int(dt.avg_temp)) / 10)
+        tempdt.append(RP(float(int(dt.avg_temp)) / 10, float(int(dt.avg_humidity))))
         ori_in_date.append(tempdt)    
     _db.close()
     # del ori_in_date[-1]
     # del ori_out_data[0]
-    in_data = torch.from_numpy(np.array(ori_in_date)).float()
-    out_data = torch.from_numpy(np.array(ori_out_data)).float()
+    in_data = torch.from_numpy(np.array(ori_in_date)).float().to(device)
+    out_data = torch.from_numpy(np.array(ori_out_data)).float().to(device)
     dataset = TensorDataset(in_data, out_data)
     data_loader = DataLoader(dataset, batch_size=128, shuffle=True)
-    epochs = 10000
+    epochs = 100000
     lr = 0.0001
     if os.path.exists(pklfile):
         model = torch.load(pklfile).to(device)
@@ -102,5 +112,5 @@ if __name__ == "__main__":
             optimizer.step()
         if epoch % 10 == 0:
             print('epoch:', epoch, 'loss:', loss.item())
-        if epoch % 100 == 0:
+        if epoch % 1000 == 0:
             torch.save(model, pklfile)

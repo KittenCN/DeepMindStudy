@@ -104,6 +104,13 @@ venv.bak/
 .mypy_cache/
 
 features/
+test/
+test
+train/
+train
+.jpg
+.jpeg
+.png
 data/
 data
 .vscode
@@ -117,6 +124,8 @@ data
 docs/modelzoo_statistics.md
 mmdet/.mim
 work_dirs/
+Meteorological forecast/data/TXT/
+Meteorological forecast/data/TXT
 
 # Pytorch
 *.pth
