@@ -6,7 +6,7 @@ from tqdm import tqdm
 img_size = 512
 
 # 数据集来源
-img_path = "D:\\workstation\\GitHub\\DeepMindStudy\\emoji\\data\\oridata\\"
+img_path = "D:\\workstation\\GitHub\\DeepMindStudy\\emoji\\data\\train\\"
 
 for path, dirs, files in os.walk(img_path, topdown=False):
     file_list = list(files)
