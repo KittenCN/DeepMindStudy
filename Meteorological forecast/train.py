@@ -33,11 +33,15 @@ class net(nn.Module):
         return x
 
 def RP(t, h):
-    a = 17.27
-    b = 237.7
-    y = ((a * t) / (b + t)) + math.log(h / 100)
-    Td = (b * y) / (a - y)
-    return Td
+    try:
+        a = 17.27
+        b = 237.7
+        y = ((a * t) / (b + t)) + math.log(h / 100)
+        Td = (b * y) / (a - y)
+        return Td
+    except BaseException:
+        print(t, h)
+        exit()
 
 def checkdata(num):
     if num >= 30000:
@@ -79,7 +83,7 @@ if __name__ == "__main__":
     _datas = _db.query(strSQL, True)
     for i, dt in enumerate(_datas):
         subbar.update(1)
-        if (checkdata(int(dt[5])) == False or checkdata(int(dt[6])) == False or checkdata(int(dt[7])) == False or checkdata(int(dt[8])) == False) and i not in unvalidID:
+        if (checkdata(int(dt[5])) == False or checkdata(int(dt[6])) == False or checkdata(int(dt[7])) == False or checkdata(int(dt[8]) or int(dt[6]) <= 0) == False) and i not in unvalidID:
             unvalidID.append(i)
         rainfalllist.append(rainfall(i, dt[8])) 
         metedatalist.append(metedata(i, dt[7], dt[6], dt[5], dt[1]))
