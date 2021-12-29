@@ -7,13 +7,16 @@ from torch.utils.data import DataLoader
 import numpy as np
 import math
 import os
+from torch.utils.tensorboard import SummaryWriter
+import torchvision
 
-db_path = 'Meteorological forecast/data/DB/database.db'
+db_path = r"/root/MeteorologicalForecast/data/DB/database.db"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 ori_in_date = []
 ori_out_data = [] 
 _db = db.Connect(db_path)
-pklfile = "Meteorological forecast/model/model.pkl"
+pklfile = r"/root/MeteorologicalForecast/model/model.pkl"
+log_writer = SummaryWriter(r"/root/tf-logs/")
 
 class net(nn.Module):
     def __init__(self) -> None:
@@ -89,30 +92,39 @@ if __name__ == "__main__":
     _db.close()
     # del ori_in_date[-1]
     # del ori_out_data[0]
+    epochs = 100000
+    lr = 0.000001
+    if os.path.exists(pklfile):
+        model = torch.load(pklfile).to(device)
+        model.eval()
+        print("load old model")
+    else:
+        model = net().to(device)
+        print("creat new model")
     in_data = torch.from_numpy(np.array(ori_in_date)).float().to(device)
     out_data = torch.from_numpy(np.array(ori_out_data)).float().to(device)
     dataset = TensorDataset(in_data, out_data)
     data_loader = DataLoader(dataset, batch_size=128, shuffle=True)
-    epochs = 10000
-    lr = 0.0001
-    if os.path.exists(pklfile):
-        model = torch.load(pklfile).to(device)
-        model.eval()
-    else:
-        model = net().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     loss_func = nn.MSELoss().to(device)
-
+    loss_all = 0
     for epoch in range(epochs):
         for inputs, targets in data_loader:
             inputs = inputs.to(device)
             targets = targets.to(device)
             outputs = model(inputs)
+            grid = torchvision.utils.make_grid(inputs)
+            log_writer.add_image('inputs', grid, 0)
+            log_writer.add_graph(model, inputs)
             loss = loss_func(outputs, targets.to(device))
+            loss_all += loss
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+        log_writer.add_scalar('Loss/train', float(loss_all), epoch)
+        loss_all = 0
         if epoch % 10 == 0:
             print('epoch:', epoch, 'loss:', loss.item())
         if epoch % 1000 == 0 and epoch != 0:
             torch.save(model, pklfile)
+    log_writer.close()
