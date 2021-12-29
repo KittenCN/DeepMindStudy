@@ -107,7 +107,6 @@ if __name__ == "__main__":
     data_loader = DataLoader(dataset, batch_size=128, shuffle=True)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     loss_func = nn.MSELoss().to(device)
-    loss_all = 0
     for epoch in range(epochs):
         for inputs, targets in data_loader:
             inputs = inputs.to(device)
@@ -117,12 +116,10 @@ if __name__ == "__main__":
             log_writer.add_image('inputs', grid, 0)
             log_writer.add_graph(model, inputs)
             loss = loss_func(outputs, targets.to(device))
-            loss_all += loss
+            log_writer.add_scalar('Loss/train', float(loss), epoch)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-        log_writer.add_scalar('Loss/train', float(loss_all), epoch)
-        loss_all = 0
         if epoch % 10 == 0:
             print('epoch:', epoch, 'loss:', loss.item())
         if epoch % 1000 == 0 and epoch != 0:
