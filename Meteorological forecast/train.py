@@ -7,21 +7,22 @@ from torch.utils.data import DataLoader
 import numpy as np
 import math
 import os
-from torch.utils.tensorboard import SummaryWriter
-import torchvision
+from tqdm import tqdm
+# from torch.utils.tensorboard import SummaryWriter
+# import torchvision
 
-db_path = r"/root/MeteorologicalForecast/data/DB/database.db"
+db_path = r"Meteorological forecast/data/DB/database.db"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 ori_in_date = []
 ori_out_data = [] 
 _db = db.Connect(db_path)
-pklfile = r"/root/MeteorologicalForecast/model/model.pkl"
-log_writer = SummaryWriter(r"/root/tf-logs/")
+pklfile = r"Meteorological forecast/model/model.pkl"
+# log_writer = SummaryWriter(r"/root/tf-logs/")
 
 class net(nn.Module):
     def __init__(self) -> None:
         super(net, self).__init__()
-        self.fc1 = nn.Linear(4, 1024)
+        self.fc1 = nn.Linear(5, 1024)
         self.fc2 = nn.Linear(1024, 128)
         self.fc3 = nn.Linear(128, 1)
     
@@ -49,29 +50,40 @@ class rainfall:
         self.allday_rainfall = allday_rainfall
 
 class metedata:
-    def __init__(self, id, avg_temp, avg_humidity, avg_pressure):
+    def __init__(self, id, avg_temp, avg_humidity, avg_pressure, altitude):
         self.id = id
         self.avg_temp = avg_temp
         self.avg_humidity = avg_humidity
         self.avg_pressure = avg_pressure
+        self.altitude = altitude
 
 if __name__ == "__main__":
     unvalidID = []
     rainfalllist = []
     metedatalist = []
-    strSQL = "select a.locationID, a.year, a.month, a.day, a.allday_rainfall from pre a inner join rhu b inner join tem c on a.locationID = b.locationID and a.locationID = c.locationID and a.year = b.year and a.year = c.year and a.month = b.month and a.month = c.month and a.day = b.day and a.day = c.day where a.locationID = 58362 order by a.year, a.month, a.day"
+    # strSQL = "select a.locationID, a.altitude, a.year, a.month, a.day, a.allday_rainfall from pre a inner join rhu b inner join tem c on a.locationID = b.locationID and a.locationID = c.locationID and a.year = b.year and a.year = c.year and a.month = b.month and a.month = c.month and a.day = b.day and a.day = c.day where 1 = 1 order by a.locationID, a.year, a.month, a.day"
+    # _datas = _db.query(strSQL, True)
+    # for i, dt in enumerate(_datas):
+    #     if checkdata(int(dt[4])) == False and i not in unvalidID:
+    #         unvalidID.append(i)
+    #     rainfalllist.append(rainfall(i, dt[4])) 
+    strSQL = "select count(a.locationID) from prs a inner join rhu b inner join tem c inner join pre d on a.locationID = b.locationID and a.locationID = c.locationID and a.locationID = d.locationID and a.year = b.year and a.year = c.year and a.year = d.year and a.month = b.month and a.month = c.month and a.month = d.month and a.day = b.day and a.day = c.day and a.day = d.day where a.avg_pressure < 30000 and b.avg_humidity < 30000 and c.avg_temp < 3000 and d.allday_rainfall < 3000 and a.altitude < 90000 order by a.locationID, a.year, a.month, a.day"
+    _datas = _db.query(strSQL, True)
+    for dt in _datas:
+        rowcnt = dt[0]
+    subbar = tqdm(total=rowcnt)
+    strSQL = "select a.locationID, a.altitude, a.year, a.month, a.day, a.avg_pressure, b.avg_humidity, c.avg_temp, d.allday_rainfall from prs a inner join rhu b inner join tem c inner join pre d on a.locationID = b.locationID and a.locationID = c.locationID and a.locationID = d.locationID and a.year = b.year and a.year = c.year and a.year = d.year and a.month = b.month and a.month = c.month and a.month = d.month and a.day = b.day and a.day = c.day and a.day = d.day where a.avg_pressure < 30000 and b.avg_humidity < 30000 and c.avg_temp < 3000 and d.allday_rainfall < 3000 and a.altitude < 90000 order by a.locationID, a.year, a.month, a.day"
     _datas = _db.query(strSQL, True)
     for i, dt in enumerate(_datas):
-        if checkdata(int(dt[4])) == False and i not in unvalidID:
+        subbar.update(1)
+        if (checkdata(int(dt[5])) == False or checkdata(int(dt[6])) == False or checkdata(int(dt[7])) == False or checkdata(int(dt[8]))) and i not in unvalidID:
             unvalidID.append(i)
-        rainfalllist.append(rainfall(i, dt[4])) 
-    strSQL = "select a.locationID, a.year, a.month, a.day, a.avg_pressure, b.avg_humidity, c.avg_temp  from prs a inner join rhu b inner join tem c on a.locationID = b.locationID and a.locationID = c.locationID and a.year = b.year and a.year = c.year and a.month = b.month and a.month = c.month and a.day = b.day and a.day = c.day where a.locationID = 58362 order by a.year, a.month, a.day"
-    _datas = _db.query(strSQL, True)
-    for i, dt in enumerate(_datas):
-        if (checkdata(int(dt[4])) == False or checkdata(int(dt[5])) == False or checkdata(int(dt[6])) == False) and i not in unvalidID:
-            unvalidID.append(i)
-        metedatalist.append(metedata(i, dt[6], dt[5], dt[4]))
+        rainfalllist.append(rainfall(i, dt[8])) 
+        metedatalist.append(metedata(i, dt[7], dt[6], dt[5], dt[1]))
+    subbar.close()
+    subbar = tqdm(total=len(rainfalllist))
     for i, dt in enumerate(rainfalllist):
+        subbar.update(1)
         if i in unvalidID:
             continue
         tempdt = []
@@ -80,20 +92,25 @@ if __name__ == "__main__":
         else:
             tempdt.append(0)
         ori_out_data.append(tempdt)
+    subbar.close()
+    subbar = tqdm(total=len(metedatalist))
     for i, dt in enumerate(metedatalist):
+        subbar.update(1)
         if i in unvalidID:
             continue
         tempdt = []
         tempdt.append(float(int(dt.avg_temp)) / 10)
         tempdt.append(float(int(dt.avg_humidity)))
         tempdt.append(float(int(dt.avg_pressure)) / 100)
+        tempdt.append(float(int(dt.altitude)) / 10)
         tempdt.append(RP(float(int(dt.avg_temp)) / 10, float(int(dt.avg_humidity))))
         ori_in_date.append(tempdt)    
     _db.close()
+    subbar.close()
     # del ori_in_date[-1]
     # del ori_out_data[0]
     epochs = 100000
-    lr = 0.000001
+    lr = 0.0001
     if os.path.exists(pklfile):
         model = torch.load(pklfile).to(device)
         model.eval()
@@ -104,7 +121,7 @@ if __name__ == "__main__":
     in_data = torch.from_numpy(np.array(ori_in_date)).float().to(device)
     out_data = torch.from_numpy(np.array(ori_out_data)).float().to(device)
     dataset = TensorDataset(in_data, out_data)
-    data_loader = DataLoader(dataset, batch_size=128, shuffle=True)
+    data_loader = DataLoader(dataset, batch_size=32, shuffle=True)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     loss_func = nn.MSELoss().to(device)
     for epoch in range(epochs):
@@ -112,11 +129,11 @@ if __name__ == "__main__":
             inputs = inputs.to(device)
             targets = targets.to(device)
             outputs = model(inputs)
-            grid = torchvision.utils.make_grid(inputs)
-            log_writer.add_image('inputs', grid, 0)
-            log_writer.add_graph(model, inputs)
+            # grid = torchvision.utils.make_grid(inputs)
+            # log_writer.add_image('inputs', grid, 0)
+            # log_writer.add_graph(model, inputs)
             loss = loss_func(outputs, targets.to(device))
-            log_writer.add_scalar('Loss/train', float(loss), epoch)
+            # log_writer.add_scalar('Loss/train', float(loss), epoch)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -124,4 +141,4 @@ if __name__ == "__main__":
             print('epoch:', epoch, 'loss:', loss.item())
         if epoch % 1000 == 0 and epoch != 0:
             torch.save(model, pklfile)
-    log_writer.close()
+    # log_writer.close()
