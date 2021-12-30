@@ -9,7 +9,7 @@ import math
 import os
 from tqdm import tqdm
 from prefetch_generator import BackgroundGenerator
-# from apex import amp
+from apex import amp
 # from torch.utils.tensorboard import SummaryWriter
 # import torchvision
 
@@ -125,23 +125,26 @@ if __name__ == "__main__":
     epochs = 100000
     lr = 0.01
     if os.path.exists(pklfile):
-        model = torch.load(pklfile).to(device)
+#         model = torch.load(pklfile).to(device)
+        model = net().to(device) 
+        model.load_state_dict(torch.load(pklfile))
         model.eval()
         print("load old model")
     else:
         model = net().to(device)
         print("creat new model")
     print("total data: ", rowcnt, "valid data: ", len(ori_in_date))
-    in_data = torch.from_numpy(np.array(ori_in_date)).float().to(device)
-    out_data = torch.from_numpy(np.array(ori_out_data)).float().to(device)
-    # optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
+    in_data = torch.from_numpy(np.array(ori_in_date)).float()
+    out_data = torch.from_numpy(np.array(ori_out_data)).float()
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     loss_func = nn.MSELoss().to(device)
-    # model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
+    model, optimizer = amp.initialize(model, optimizer, opt_level="O0")
     dataset = TensorDataset(in_data, out_data)
-    data_loader = DataLoaderX(dataset, batch_size=16, shuffle=True)
+    data_loader = DataLoaderX(dataset, batch_size=1024, shuffle=True, num_workers=16, pin_memory=True)
     for epoch in range(epochs):
+#         subbar = tqdm(total=len(data_loader), leave=False)
         for inputs, targets in data_loader:
+#             subbar.update(1)
             inputs = inputs.to(device)
             targets = targets.to(device)
             outputs = model(inputs)
@@ -151,12 +154,13 @@ if __name__ == "__main__":
             loss = loss_func(outputs, targets.to(device))
             # log_writer.add_scalar('Loss/train', float(loss), epoch)
             optimizer.zero_grad()
-            # with amp.scale_loss(loss, optimizer) as scaled_loss:
-            #     scaled_loss.backward()
-            loss.backward()
+            with amp.scale_loss(loss, optimizer) as scaled_loss:
+                scaled_loss.backward()
+#             loss.backward()
             optimizer.step()
-        if epoch % 10 == 0:
+#         subbar.close()
+        if epoch % 10 == 0 and epoch != 0:
             print('epoch:', epoch, 'loss:', loss.item())
-        if epoch % 1000 == 0 and epoch != 0:
-            torch.save(model, pklfile)
+        if epoch % 100 == 0 and epoch != 0:
+            torch.save(model.state_dict(), pklfile)
     # log_writer.close()
