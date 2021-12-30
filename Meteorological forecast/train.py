@@ -8,6 +8,8 @@ import numpy as np
 import math
 import os
 from tqdm import tqdm
+from prefetch_generator import BackgroundGenerator
+from apex import amp
 # from torch.utils.tensorboard import SummaryWriter
 # import torchvision
 
@@ -18,6 +20,10 @@ ori_out_data = []
 _db = db.Connect(db_path)
 pklfile = r"Meteorological forecast/model/model.pkl"
 # log_writer = SummaryWriter(r"/root/tf-logs/")
+
+class DataLoaderX(DataLoader):
+    def __iter__(self):
+        return BackgroundGenerator(super().__iter__())
 
 class net(nn.Module):
     def __init__(self) -> None:
@@ -72,18 +78,18 @@ if __name__ == "__main__":
     #         unvalidID.append(i)
     #     rainfalllist.append(rainfall(i, dt[4])) 
     strSQL = "select count(a.locationID) from prs a inner join rhu b inner join tem c inner join pre d on a.locationID = b.locationID and a.locationID = c.locationID and a.locationID = d.locationID and a.year = b.year and a.year = c.year and a.year = d.year and a.month = b.month and a.month = c.month and a.month = d.month and a.day = b.day and a.day = c.day and a.day = d.day where a.avg_pressure < 30000 and b.avg_humidity < 30000 and c.avg_temp < 3000 and d.allday_rainfall < 3000 and a.altitude < 90000 order by a.locationID, a.year, a.month, a.day"
-    strSQL += " limit 1000"
+    # strSQL += " limit 1000"
     _datas = _db.query(strSQL, True)
     for dt in _datas:
         rowcnt = dt[0]
         break
-    subbar = tqdm(total=rowcnt)
     strSQL = "select a.locationID, a.altitude, a.year, a.month, a.day, a.avg_pressure, b.avg_humidity, c.avg_temp, d.allday_rainfall from prs a inner join rhu b inner join tem c inner join pre d on a.locationID = b.locationID and a.locationID = c.locationID and a.locationID = d.locationID and a.year = b.year and a.year = c.year and a.year = d.year and a.month = b.month and a.month = c.month and a.month = d.month and a.day = b.day and a.day = c.day and a.day = d.day where a.avg_pressure < 30000 and b.avg_humidity < 30000 and c.avg_temp < 3000 and d.allday_rainfall < 3000 and a.altitude < 90000 order by a.locationID, a.year, a.month, a.day"
-    strSQL += " limit 1000"
+    # strSQL += " limit 1000"
     _datas = _db.query(strSQL, True)
+    subbar = tqdm(total=rowcnt)
     for i, dt in enumerate(_datas):
         subbar.update(1)
-        if (checkdata(int(dt[5])) == False or checkdata(int(dt[6])) == False or checkdata(int(dt[7])) == False or checkdata(int(dt[8]) or int(dt[6]) <= 0) == False) and i not in unvalidID:
+        if (checkdata(int(dt[5])) == False or checkdata(int(dt[6])) == False or checkdata(int(dt[7])) == False or checkdata(int(dt[8])) == False or int(dt[6]) <= 0) and i not in unvalidID:
             unvalidID.append(i)
         rainfalllist.append(rainfall(i, dt[8])) 
         metedatalist.append(metedata(i, dt[7], dt[6], dt[5], dt[1]))
@@ -117,7 +123,7 @@ if __name__ == "__main__":
     # del ori_in_date[-1]
     # del ori_out_data[0]
     epochs = 100000
-    lr = 0.0001
+    lr = 0.01
     if os.path.exists(pklfile):
         model = torch.load(pklfile).to(device)
         model.eval()
@@ -125,12 +131,14 @@ if __name__ == "__main__":
     else:
         model = net().to(device)
         print("creat new model")
+    print("total data: ", rowcnt, "valid data: ", len(ori_in_date))
     in_data = torch.from_numpy(np.array(ori_in_date)).float().to(device)
     out_data = torch.from_numpy(np.array(ori_out_data)).float().to(device)
-    dataset = TensorDataset(in_data, out_data)
-    data_loader = DataLoader(dataset, batch_size=32, shuffle=True)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     loss_func = nn.MSELoss().to(device)
+    model, optimizer = amp.initialize(model, optimizer, opt_level="O0")
+    dataset = TensorDataset(in_data, out_data)
+    data_loader = DataLoaderX(dataset, batch_size=16, shuffle=True)
     for epoch in range(epochs):
         for inputs, targets in data_loader:
             inputs = inputs.to(device)
@@ -142,7 +150,9 @@ if __name__ == "__main__":
             loss = loss_func(outputs, targets.to(device))
             # log_writer.add_scalar('Loss/train', float(loss), epoch)
             optimizer.zero_grad()
-            loss.backward()
+            with amp.scale_loss(loss, optimizer) as scaled_loss:
+                scaled_loss.backward()
+            # loss.backward()
             optimizer.step()
         if epoch % 10 == 0:
             print('epoch:', epoch, 'loss:', loss.item())
