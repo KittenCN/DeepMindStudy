@@ -9,7 +9,7 @@ import math
 import os
 from tqdm import tqdm
 from prefetch_generator import BackgroundGenerator
-from apex import amp
+# from apex import amp
 # from torch.utils.tensorboard import SummaryWriter
 # import torchvision
 
@@ -28,9 +28,9 @@ class DataLoaderX(DataLoader):
 class net(nn.Module):
     def __init__(self) -> None:
         super(net, self).__init__()
-        self.fc1 = nn.Linear(5, 1024)
-        self.fc2 = nn.Linear(1024, 128)
-        self.fc3 = nn.Linear(128, 1)
+        self.fc1 = nn.Linear(5, 128)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, 1)
     
     def forward(self, x):
         x = F.relu(self.fc1(x))
@@ -134,9 +134,10 @@ if __name__ == "__main__":
     print("total data: ", rowcnt, "valid data: ", len(ori_in_date))
     in_data = torch.from_numpy(np.array(ori_in_date)).float().to(device)
     out_data = torch.from_numpy(np.array(ori_out_data)).float().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    # optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
     loss_func = nn.MSELoss().to(device)
-    model, optimizer = amp.initialize(model, optimizer, opt_level="O0")
+    # model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
     dataset = TensorDataset(in_data, out_data)
     data_loader = DataLoaderX(dataset, batch_size=16, shuffle=True)
     for epoch in range(epochs):
@@ -150,9 +151,9 @@ if __name__ == "__main__":
             loss = loss_func(outputs, targets.to(device))
             # log_writer.add_scalar('Loss/train', float(loss), epoch)
             optimizer.zero_grad()
-            with amp.scale_loss(loss, optimizer) as scaled_loss:
-                scaled_loss.backward()
-            # loss.backward()
+            # with amp.scale_loss(loss, optimizer) as scaled_loss:
+            #     scaled_loss.backward()
+            loss.backward()
             optimizer.step()
         if epoch % 10 == 0:
             print('epoch:', epoch, 'loss:', loss.item())
