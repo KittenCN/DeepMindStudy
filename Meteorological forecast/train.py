@@ -171,7 +171,7 @@ if __name__ == "__main__":
         subbar.close()
         if (epoch + 1) % 10 == 0 and epoch != 0:
             bar.close()
-            print('epoch:', epoch, 'loss:', loss.item())
+            print('epoch:', epoch + 1, 'loss:', loss.item())
             bar = tqdm(total=10, leave=False)
         if (epoch + 1) % 100 == 0 and epoch != 0:
             torch.save(model.state_dict(), pklfile)
