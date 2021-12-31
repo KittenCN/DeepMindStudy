@@ -8,8 +8,8 @@ import numpy as np
 import math
 import os
 from tqdm import tqdm
-# from prefetch_generator import BackgroundGenerator
-# from apex import amp
+from prefetch_generator import BackgroundGenerator
+from apex import amp
 # from torch.utils.tensorboard import SummaryWriter
 # import torchvision
 
@@ -21,9 +21,9 @@ _db = db.Connect(db_path)
 pklfile = r"Meteorological forecast/model/model.pkl"
 # log_writer = SummaryWriter(r"/root/tf-logs/")
 
-# class DataLoaderX(DataLoader):
-#     def __iter__(self):
-#         return BackgroundGenerator(super().__iter__())
+class DataLoaderX(DataLoader):
+    def __iter__(self):
+        return BackgroundGenerator(super().__iter__())
 
 class net(nn.Module):
     def __init__(self) -> None:
@@ -88,14 +88,14 @@ if __name__ == "__main__":
     # strSQL += " limit 1000"
     _table = _db.table("METE")
     _datas = _table.findAll()
-    rowcnt = _table.count()
+    rowcnt = len(_datas)
     subbar = tqdm(total=rowcnt)
     for i, dt in enumerate(_datas):
         subbar.update(1)
-        if (checkdata(int(dt[5])) == False or checkdata(int(dt[6])) == False or checkdata(int(dt[7])) == False or checkdata(int(dt[8])) == False or int(dt[6]) <= 0) and i not in unvalidID:
+        if (checkdata(int(dt['avg_pressure'])) == False or checkdata(int(dt['avg_humidity'])) == False or checkdata(int(dt['avg_temp'])) == False or checkdata(int(dt['allday_rainfall'])) == False or int(dt['avg_humidity']) <= 0) and i not in unvalidID:
             unvalidID.append(i)
-        rainfalllist.append(rainfall(i, dt[8])) 
-        metedatalist.append(metedata(i, dt[7], dt[6], dt[5], dt[1]))
+        rainfalllist.append(rainfall(i, dt['avg_temp'])) 
+        metedatalist.append(metedata(i, dt['avg_temp'], dt['avg_humidity'], dt['avg_pressure'], dt['altitude']))
     subbar.close()
     subbar = tqdm(total=len(rainfalllist))
     for i, dt in enumerate(rainfalllist):
@@ -141,14 +141,14 @@ if __name__ == "__main__":
     out_data = torch.from_numpy(np.array(ori_out_data)).float()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     loss_func = nn.MSELoss().to(device)
-    # model, optimizer = amp.initialize(model, optimizer, opt_level="O0")
+    model, optimizer = amp.initialize(model, optimizer, opt_level="O0")
     dataset = TensorDataset(in_data, out_data)
-    data_loader = DataLoader(dataset, batch_size=1024, shuffle=True, num_workers=16, pin_memory=True)
-    # data_loader = DataLoaderX(dataset, batch_size=1024, shuffle=True, num_workers=16, pin_memory=True)
+    # data_loader = DataLoader(dataset, batch_size=1024, shuffle=True, num_workers=16, pin_memory=True)
+    data_loader = DataLoaderX(dataset, batch_size=1024, shuffle=True, num_workers=16, pin_memory=True)
     for epoch in range(epochs):
-#         subbar = tqdm(total=len(data_loader), leave=False)
+        subbar = tqdm(total=len(data_loader), leave=False)
         for inputs, targets in data_loader:
-#             subbar.update(1)
+            subbar.update(1)
             inputs = inputs.to(device)
             targets = targets.to(device)
             outputs = model(inputs)
@@ -158,11 +158,11 @@ if __name__ == "__main__":
             loss = loss_func(outputs, targets.to(device))
             # log_writer.add_scalar('Loss/train', float(loss), epoch)
             optimizer.zero_grad()
-            # with amp.scale_loss(loss, optimizer) as scaled_loss:
-            #     scaled_loss.backward()
-            loss.backward()
+            with amp.scale_loss(loss, optimizer) as scaled_loss:
+                scaled_loss.backward()
+            # loss.backward()
             optimizer.step()
-#         subbar.close()
+        subbar.close()
         if epoch % 10 == 0 and epoch != 0:
             print('epoch:', epoch, 'loss:', loss.item())
         if epoch % 100 == 0 and epoch != 0:
