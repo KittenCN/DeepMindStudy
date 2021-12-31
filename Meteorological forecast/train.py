@@ -29,13 +29,17 @@ class net(nn.Module):
     def __init__(self) -> None:
         super(net, self).__init__()
         self.fc1 = nn.Linear(5, 128)
-        self.fc2 = nn.Linear(128, 64)
-        self.fc3 = nn.Linear(64, 1)
+        self.fc2 = nn.Linear(128, 512)
+        self.fc3 = nn.Linear(512, 256)
+        self.fc4 = nn.Linear(256, 64)
+        self.fc5 = nn.Linear(64, 1)
     
     def forward(self, x):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        x = self.fc3(x)
+        x = F.relu(self.fc3(x))
+        x = F.relu(self.fc4(x))
+        x = self.fc5(x)
         return x
 
 def RP(t, h):
@@ -145,7 +149,9 @@ if __name__ == "__main__":
     dataset = TensorDataset(in_data, out_data)
     # data_loader = DataLoader(dataset, batch_size=1024, shuffle=True, num_workers=16, pin_memory=True)
     data_loader = DataLoaderX(dataset, batch_size=1024, shuffle=True, num_workers=16, pin_memory=True)
+    bar = tqdm(total=10, leave=False)
     for epoch in range(epochs):
+        bar.update(1)
         subbar = tqdm(total=len(data_loader), leave=False)
         for inputs, targets in data_loader:
             subbar.update(1)
@@ -163,8 +169,11 @@ if __name__ == "__main__":
             # loss.backward()
             optimizer.step()
         subbar.close()
-        if epoch % 10 == 0 and epoch != 0:
+        if (epoch + 1) % 10 == 0 and epoch != 0:
+            bar.close()
             print('epoch:', epoch, 'loss:', loss.item())
-        if epoch % 100 == 0 and epoch != 0:
+            bar = tqdm(total=10, leave=False)
+        if (epoch + 1) % 100 == 0 and epoch != 0:
             torch.save(model.state_dict(), pklfile)
     # log_writer.close()
+
