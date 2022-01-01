@@ -29,10 +29,10 @@ def get_data(origin, filename, index):
             line = line.strip()
             line = re.sub(r"\s+", " ", line)
             seges = line.split(' ')
-            dick = origin.copy()
-            for i, seg in enumerate(dick):
-                dick[seg] = float(seges[i])
-            datas[index].append(dick)
+            dict = origin.copy()
+            for i, seg in enumerate(dict):
+                dict[seg] = float(seges[i])
+            datas[index].append(dict)
         subpbar.close()
 
 def TransNewData():
@@ -58,10 +58,10 @@ def CalulateMereForeData():
     _datas = _db.query(strSQL, True)
     data = []
     for i, dt in enumerate(_datas):
-        dick = METE.copy()
-        for j, seg in enumerate(dick):
-            dick[seg] = dt[j]
-        data.append(dick)
+        dict = METE.copy()
+        for j, seg in enumerate(dict):
+            dict[seg] = dt[j]
+        data.append(dict)
     _db.table('METE').data(data).add()
     _db.close()
 
