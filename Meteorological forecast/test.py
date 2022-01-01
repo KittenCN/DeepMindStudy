@@ -8,14 +8,15 @@ import numpy as np
 import math
 import os
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 use_gpu = torch.cuda.is_available()
-db_path = 'Meteorological forecast/data/DB/database.db'
+db_path = r"Meteorological forecast\data\DB\database.db"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 ori_in_date = []
 ori_out_data = [] 
 _db = db.Connect(db_path)
-pklfile = "Meteorological forecast/model/model.pkl"
+pklfile = r"/root/MeteorologicalForecast/model/model.pkl"
 
 class rainfall:
     def __init__(self, id, allday_rainfall):
@@ -23,11 +24,12 @@ class rainfall:
         self.allday_rainfall = allday_rainfall
 
 class metedata:
-    def __init__(self, id, avg_temp, avg_humidity, avg_pressure):
+    def __init__(self, id, avg_temp, avg_humidity, avg_pressure, altitude):
         self.id = id
         self.avg_temp = avg_temp
         self.avg_humidity = avg_humidity
         self.avg_pressure = avg_pressure
+        self.altitude = altitude
 
 class net(nn.Module):
     def __init__(self) -> None:
@@ -67,19 +69,20 @@ if __name__ == '__main__':
     unvalidID = []
     rainfalllist = []
     metedatalist = []
-    strSQL = "select a.locationID, a.year, a.month, a.day, a.allday_rainfall from pre a inner join rhu b inner join tem c on a.locationID = b.locationID and a.locationID = c.locationID and a.year = b.year and a.year = c.year and a.month = b.month and a.month = c.month and a.day = b.day and a.day = c.day where a.locationID = 58362 order by a.year, a.month, a.day"
-    _datas = _db.query(strSQL, True)
+    _table = _db.table("METE")
+    _datas = _table.findAll()
+    rowcnt = len(_datas)
+    subbar = tqdm(total=rowcnt)
     for i, dt in enumerate(_datas):
-        if checkdata(int(dt[4])) == False and i not in unvalidID:
+        subbar.update(1)
+        if (checkdata(int(dt['avg_pressure'])) == False or checkdata(int(dt['avg_humidity'])) == False or checkdata(int(dt['avg_temp'])) == False or checkdata(int(dt['allday_rainfall'])) == False or int(dt['avg_humidity']) <= 0) and i not in unvalidID:
             unvalidID.append(i)
-        rainfalllist.append(rainfall(i, dt[4])) 
-    strSQL = "select a.locationID, a.year, a.month, a.day, a.avg_pressure, b.avg_humidity, c.avg_temp  from prs a inner join rhu b inner join tem c on a.locationID = b.locationID and a.locationID = c.locationID and a.year = b.year and a.year = c.year and a.month = b.month and a.month = c.month and a.day = b.day and a.day = c.day where a.locationID = 58362 order by a.year, a.month, a.day"
-    _datas = _db.query(strSQL, True)
-    for i, dt in enumerate(_datas):
-        if (checkdata(int(dt[4])) == False or checkdata(int(dt[5])) == False or checkdata(int(dt[6])) == False) and i not in unvalidID:
-            unvalidID.append(i)
-        metedatalist.append(metedata(i, dt[6], dt[5], dt[4]))
+        rainfalllist.append(rainfall(i, dt['avg_temp'])) 
+        metedatalist.append(metedata(i, dt['avg_temp'], dt['avg_humidity'], dt['avg_pressure'], dt['altitude']))
+    subbar.close()
+    subbar = tqdm(total=len(rainfalllist))
     for i, dt in enumerate(rainfalllist):
+        subbar.update(1)
         if i in unvalidID:
             continue
         tempdt = []
@@ -88,21 +91,29 @@ if __name__ == '__main__':
         else:
             tempdt.append(0)
         ori_out_data.append(tempdt)
+    subbar.close()
+    subbar = tqdm(total=len(metedatalist))
     for i, dt in enumerate(metedatalist):
+        subbar.update(1)
         if i in unvalidID:
             continue
         tempdt = []
         tempdt.append(float(int(dt.avg_temp)) / 10)
         tempdt.append(float(int(dt.avg_humidity)))
         tempdt.append(float(int(dt.avg_pressure)) / 100)
+        tempdt.append(float(int(dt.altitude)) / 10)
         tempdt.append(RP(float(int(dt.avg_temp)) / 10, float(int(dt.avg_humidity))))
         ori_in_date.append(tempdt)    
     _db.close()
-    model = torch.load(pklfile).to(device)
+    subbar.close()
+    model = net().to(device) 
+    model.load_state_dict(torch.load(pklfile))
     model.eval()
     sumloss = 0
     plts = []
+    subbar = tqdm(total=len(ori_in_date))
     for i, dt in enumerate(ori_in_date):
+        subbar.update(1)
         x = [dt]
         x = torch.from_numpy(np.array(x)).float().to(device)
         plts.append([abs(dt[0] - dt[1]),ori_out_data[i][0]])
@@ -112,4 +123,5 @@ if __name__ == '__main__':
         elif y <= 0:
             y = 0
         sumloss += abs(y - ori_out_data[i][0])
+    subbar.close()
     print("avgloss = ", round(sumloss / (len(ori_in_date) * 100) * 100, 2), "%")

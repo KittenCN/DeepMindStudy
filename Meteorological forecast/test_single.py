@@ -5,18 +5,24 @@ import torch.nn.functional as F
 import numpy as np
 
 use_gpu = torch.cuda.is_available()
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+pklfile = r"/root/MeteorologicalForecast/model/model.pkl"
 
 class net(nn.Module):
     def __init__(self) -> None:
         super(net, self).__init__()
-        self.fc1 = nn.Linear(2, 1024)
-        self.fc2 = nn.Linear(1024, 128)
-        self.fc3 = nn.Linear(128, 1)
+        self.fc1 = nn.Linear(5, 128)
+        self.fc2 = nn.Linear(128, 512)
+        self.fc3 = nn.Linear(512, 256)
+        self.fc4 = nn.Linear(256, 64)
+        self.fc5 = nn.Linear(64, 1)
     
     def forward(self, x):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        x = self.fc3(x)
+        x = F.relu(self.fc3(x))
+        x = F.relu(self.fc4(x))
+        x = self.fc5(x)
         return x
 
 def RP(t, h):
@@ -31,8 +37,11 @@ if __name__ == '__main__':
     humidity = float(input("Please input humidity: "))
     temp = float(input("Please input temperature: "))
     pressure = float(input("Please input pressure: "))
-    model = torch.load("Meteorological forecast/model/model.pkl")
-    x = [[temp, humidity, pressure, RP(temp, humidity)]]
+    altitude = float(input("Please input altitude: "))
+    model = net().to(device) 
+    model.load_state_dict(torch.load(pklfile))
+    model.eval()
+    x = [[temp, humidity, pressure, altitude, RP(temp, humidity)]]
     x = torch.from_numpy(np.array(x)).float()
     if use_gpu:
         x = x.cuda()
