@@ -6,7 +6,7 @@ from torchvision import transforms
 from torchvision.utils import make_grid
 from torchvision.datasets import CIFAR10
 from pylab import plt
-
+from tqdm import tqdm
 
 import os
 os.environ['CUDA_VISIBLE_DEVICES']='0'
@@ -58,7 +58,7 @@ if __name__ == "__main__":
                     transforms.Normalize([0.5]*3,[0.5]*3)
                     ])
 
-    dataset=CIFAR10(root='data/cifar10/data',transform=transform,download=True)
+    dataset=CIFAR10(root=r'D:\workstation\GitHub\DeepMindStudy\data\cifar10\data',transform=transform,download=True)
     # dataloader with multiprocessing
     dataloader=t.utils.data.DataLoader(dataset,
                                     opt.batch_size,
@@ -126,14 +126,22 @@ if __name__ == "__main__":
         netd.cuda()
         netg.cuda()
 
+    print(netd)
+    print(netg)
+
     # begin training
     print('begin training, be patient...')
     # one=t.FloatTensor([1])
-    one = t.tensor(1, dtype=t.float)
+    # one = t.tensor(1, dtype=t.float)
+    one = t.rand(32, 1, 1, 1)
     mone=-1*one
 
+    bar = tqdm(total = opt.max_epoch)
     for epoch in range(opt.max_epoch):
+        bar.update(1)
+        subbar = tqdm(total = len(dataloader), leave = False)
         for ii, data in enumerate(dataloader,0):
+            subbar.update(1)
             real,_=data
             input = Variable(real)
             noise = t.randn(input.size(0),opt.nz,1,1)
@@ -171,21 +179,25 @@ if __name__ == "__main__":
                 output.backward(one)
                 optimizerG.step()
                 if ii%100==0:pass
+        subbar.close()
         fake_u=netg(fix_noise)
         imgs = make_grid(fake_u.data*0.5+0.5).cpu() # CHW
-        plt.imshow(imgs.permute(1,2,0).numpy()) # HWC
-        plt.show()
+        # plt.imshow(imgs.permute(1,2,0).numpy()) # HWC
+        # plt.show()
+        plt.savefig('WGAN/output/' + str(epoch) + '-' + str(ii) + '.png')
+    bar.close()
 
-    t.save(netd.state_dict(),'epoch_wnetd.pth')
-    t.save(netg.state_dict(),'epoch_wnetg.pth')
+    t.save(netd.state_dict(),r'WGAN\modelepoch_wnetd.pth')
+    t.save(netg.state_dict(),r'WGAN\modelepoch_wnetg.pth')
 
-    netd.load_state_dict(t.load('epoch_wnetd.pth'))
-    netg.load_state_dict(t.load('epoch_wnetg.pth'))
+    netd.load_state_dict(t.load(r'WGAN\model\epoch_wnetd.pth'))
+    netg.load_state_dict(t.load(r'WGAN\modelepoch_wnetg.pth'))
 
     noise = t.randn(64,opt.nz,1,1).cuda()
     noise = Variable(noise)
     fake_u=netg(noise)
     imgs = make_grid(fake_u.data*0.5+0.5).cpu() # CHW
     plt.figure(figsize=(5,5))
-    plt.imshow(imgs.permute(1,2,0).numpy()) # HWC
-    plt.show()
+    # plt.imshow(imgs.permute(1,2,0).numpy()) # HWC
+    # plt.show()
+    plt.savefig(r'WGAN\output\lastresult.png')
