@@ -12,9 +12,13 @@ from torchvision.utils import make_grid
 from torchvision.utils import save_image
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-img_size = 128
 g_file = r'D:\workstation\GitHub\DeepMindStudy\WGAN\model\G.ckpt'
 d_file = r'D:\workstation\GitHub\DeepMindStudy\WGAN\model\D.ckpt'
+img_size = 64
+img_rate = 1  # 64:1, 128:5
+base_channels = img_size
+img_folder = r'D:\workstation\GitHub\DeepMindStudy\data\emoji\data'
+sample_dir = r'D:\workstation\GitHub\DeepMindStudy\WGAN\results'
 
 # --------
 # 定义网络
@@ -22,23 +26,23 @@ d_file = r'D:\workstation\GitHub\DeepMindStudy\WGAN\model\D.ckpt'
 class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=img_size, kernel_size=4, stride=2, padding=1, bias=False)
-        self.batchN1 = nn.BatchNorm2d(img_size)
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=base_channels, kernel_size=4, stride=2, padding=1, bias=False)
+        self.batchN1 = nn.BatchNorm2d(base_channels)
         self.LeakyReLU1 = nn.LeakyReLU(0.2, inplace=True)
         
-        self.conv2 = nn.Conv2d(in_channels=img_size, out_channels=img_size*2, kernel_size=4, stride=2, padding=1, bias=False)
-        self.batchN2 = nn.BatchNorm2d(img_size*2)
+        self.conv2 = nn.Conv2d(in_channels=base_channels, out_channels=base_channels*2, kernel_size=4, stride=2, padding=1, bias=False)
+        self.batchN2 = nn.BatchNorm2d(base_channels*2)
         self.LeakyReLU2 = nn.LeakyReLU(0.2, inplace=True)       
 
-        self.conv3 = nn.Conv2d(in_channels=img_size*2, out_channels=img_size*4, kernel_size=4, stride=2, padding=1, bias=False)
-        self.batchN3 = nn.BatchNorm2d(img_size*4)
+        self.conv3 = nn.Conv2d(in_channels=base_channels*2, out_channels=base_channels*4, kernel_size=4, stride=2, padding=1, bias=False)
+        self.batchN3 = nn.BatchNorm2d(base_channels*4)
         self.LeakyReLU3 = nn.LeakyReLU(0.2, inplace=True)
         
-        self.conv4 = nn.Conv2d(in_channels=img_size*4, out_channels=img_size*8, kernel_size=4, stride=2, padding=1, bias=False)
-        self.batchN4 = nn.BatchNorm2d(img_size*8)
+        self.conv4 = nn.Conv2d(in_channels=base_channels*4, out_channels=base_channels*8, kernel_size=4, stride=2, padding=1, bias=False)
+        self.batchN4 = nn.BatchNorm2d(base_channels*8)
         self.LeakyReLU4 = nn.LeakyReLU(0.2, inplace=True)
         
-        self.conv5 = nn.Conv2d(in_channels=img_size*8, out_channels=1, kernel_size=4, bias=False)
+        self.conv5 = nn.Conv2d(in_channels=base_channels*8, out_channels=1, kernel_size=4, bias=False)
         self.sigmoid = nn.Sigmoid()
         
     def forward(self, x):
@@ -52,23 +56,23 @@ class Discriminator(nn.Module):
 class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
-        self.ConvT1 = nn.ConvTranspose2d(in_channels=100, out_channels=img_size*8, kernel_size=4, bias=False) # 这里的in_channels是和初始的随机数有关
-        self.batchN1 = nn.BatchNorm2d(img_size*8)
+        self.ConvT1 = nn.ConvTranspose2d(in_channels=100, out_channels=base_channels*8, kernel_size=4, bias=False) # 这里的in_channels是和初始的随机数有关
+        self.batchN1 = nn.BatchNorm2d(base_channels*8)
         self.relu1 = nn.ReLU()
         
-        self.ConvT2 = nn.ConvTranspose2d(in_channels=img_size*8, out_channels=img_size*4, kernel_size=4, stride=2, padding=1, bias=False) # 这里的in_channels是和初始的随机数有关
-        self.batchN2 = nn.BatchNorm2d(img_size*4)
+        self.ConvT2 = nn.ConvTranspose2d(in_channels=base_channels*8, out_channels=base_channels*4, kernel_size=4, stride=2, padding=1, bias=False) # 这里的in_channels是和初始的随机数有关
+        self.batchN2 = nn.BatchNorm2d(base_channels*4)
         self.relu2 = nn.ReLU()        
         
-        self.ConvT3= nn.ConvTranspose2d(in_channels=img_size*4, out_channels=img_size*2, kernel_size=4, stride=2, padding=1, bias=False) # 这里的in_channels是和初始的随机数有关
-        self.batchN3 = nn.BatchNorm2d(img_size*2)
+        self.ConvT3= nn.ConvTranspose2d(in_channels=base_channels*4, out_channels=base_channels*2, kernel_size=4, stride=2, padding=1, bias=False) # 这里的in_channels是和初始的随机数有关
+        self.batchN3 = nn.BatchNorm2d(base_channels*2)
         self.relu3 = nn.ReLU()
 
-        self.ConvT4 = nn.ConvTranspose2d(in_channels=img_size*2, out_channels=img_size, kernel_size=4, stride=2, padding=1, bias=False) # 这里的in_channels是和初始的随机数有关
-        self.batchN4 = nn.BatchNorm2d(img_size)
+        self.ConvT4 = nn.ConvTranspose2d(in_channels=base_channels*2, out_channels=base_channels, kernel_size=4, stride=2, padding=1, bias=False) # 这里的in_channels是和初始的随机数有关
+        self.batchN4 = nn.BatchNorm2d(base_channels)
         self.relu4 = nn.ReLU()
         
-        self.ConvT5 = nn.ConvTranspose2d(in_channels=img_size, out_channels=3, kernel_size=4, stride=2, padding=1, bias=False)
+        self.ConvT5 = nn.ConvTranspose2d(in_channels=base_channels, out_channels=3, kernel_size=4, stride=2, padding=1, bias=False)
         self.tanh = nn.Tanh() # 激活函数
         
     def forward(self, x):
@@ -87,7 +91,7 @@ def denorm(x):
 
 if __name__ == "__main__":
     # 将日志保存到文件
-    logging.basicConfig(filename='logger.log',level=logging.DEBUG)
+    logging.basicConfig(filename='logger.log',level=logging.INFO)
     # ----------
     # 加载数据集
     # ----------
@@ -96,11 +100,11 @@ if __name__ == "__main__":
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
-    dataset = datasets.ImageFolder(r'D:\workstation\GitHub\DeepMindStudy\data\emoji\data', transform=trans) # 数据路径
+    dataset = datasets.ImageFolder(img_folder, transform=trans) # 数据路径
     dataloader = torch.utils.data.DataLoader(dataset,
-                                        batch_size=16, # 批量大小
+                                        batch_size=128, # 批量大小
                                         shuffle=True, # 乱序
-                                        num_workers=2 # 多进程
+                                        num_workers=6 # 多进程
                                         )
     # ----------
     # 初始化网络
@@ -117,7 +121,7 @@ if __name__ == "__main__":
         print("load old model")
     else:
         print("new model")
- 
+    
     # -----------------------
     # 定义损失函数和优化器
     # -----------------------
@@ -125,16 +129,15 @@ if __name__ == "__main__":
     d_optimizer = torch.optim.Adam(D.parameters(), lr=learning_rate, betas=(0.5, 0.9))
     g_optimizer = torch.optim.Adam(G.parameters(), lr=learning_rate, betas=(0.5, 0.9))
     # 每3次降低学习率
-    d_exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(d_optimizer, step_size=100, gamma=0.95)
-    g_exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(g_optimizer, step_size=100, gamma=0.95)
+    d_exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(d_optimizer, step_size=300, gamma=0.95)
+    g_exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(g_optimizer, step_size=300, gamma=0.95)
     # 定义惩罚系数
     penalty_lambda = 0.1
     # --------
     # 开始训练
     # --------
-    num_epochs = 1000
-    sample_dir = r'D:\workstation\GitHub\DeepMindStudy\WGAN\resulte'
-    test_noise = Variable(torch.FloatTensor(40, 100, 5, 5).normal_(0, 1)).to(device) # 用于测试绘图
+    num_epochs = 100000
+    test_noise = Variable(torch.FloatTensor(40, 100, img_rate, img_rate).normal_(0, 1)).to(device) # 用于测试绘图
     total_step = len(dataloader) # 依次epoch的步骤
     # ------------------
     # 一开始学习率快一些
@@ -150,7 +153,7 @@ if __name__ == "__main__":
             # 创造real label和fake label
             real_labels = torch.ones(batch_size, 1).to(device) # real的pic的label都是1
             fake_labels = torch.zeros(batch_size, 1).to(device) # fake的pic的label都是0
-            noise = Variable(torch.randn(batch_size, 100, 5, 5)).to(device) # 随机噪声，生成器输入
+            noise = Variable(torch.randn(batch_size, 100, img_rate, img_rate)).to(device) # 随机噪声，生成器输入
             # ---------------------
             # 开始训练discriminator
             # ---------------------
@@ -184,40 +187,39 @@ if __name__ == "__main__":
             g_optimizer.zero_grad() # 两个优化器梯度都要清0
             d_optimizer.zero_grad()
             d_loss.backward()
-            d_optimizer.step()
-            d_exp_lr_scheduler.step()
-                
+            d_optimizer.step()             
             # ------------------------------------
             # 开始训练generator(多训练几轮D, 在训练G)
             # ------------------------------------
             if (i + 1) % 2 == 0:
-                normal_noise = Variable(torch.randn(batch_size, 100, 5, 5)).normal_(0, 1).to(device)
+                normal_noise = Variable(torch.randn(batch_size, 100, img_rate, img_rate)).normal_(0, 1).to(device)
                 fake_images = G(normal_noise) # 生成假的图片
                 outputs = D(fake_images) # 放入辨别器
                 g_loss = -torch.mean(outputs) # 希望生成器生成的图片判别器可以判别为真
                 d_optimizer.zero_grad()
                 g_optimizer.zero_grad()
                 g_loss.backward()
-                g_optimizer.step()
-                g_exp_lr_scheduler.step()
-            
-            # ----------
-            # 打印结果
-            # ---------
-            if (i+2) % 20 == 0:
-                t = datetime.now() #获取现在的时间
-                # print('Time {}, Epoch [{}/{}], Step [{}/{}], d_loss_real:{:.4f} + d_loss_fake:{:.4f} + gradient_penalty:{:.4f} = d_loss: {:.4f}, g_loss: {:.4f}, d_lr={:.6f},g_lr={:.6f}'
-                #     .format(t, epoch, num_epochs, i+1, total_step, d_loss_real.item(), d_loss_fake.item(), gradient_penalty.item(), d_loss.item(), g_loss.item(),
-                #             d_optimizer.param_groups[0]['lr'], g_optimizer.param_groups[0]['lr']))
-                logging.info('Time {}, Epoch [{}/{}], Step [{}/{}], d_loss_real:{:.4f} + d_loss_fake:{:.4f} + gradient_penalty:{:.4f} = d_loss: {:.4f}, g_loss: {:.4f}, d_lr={:.6f},g_lr={:.6f}'
-                    .format(t, epoch, num_epochs, i+1, total_step, d_loss_real.item(), d_loss_fake.item(), gradient_penalty.item(), d_loss.item(), g_loss.item(),
-                            d_optimizer.param_groups[0]['lr'], g_optimizer.param_groups[0]['lr']))
+                g_optimizer.step()      
             subbar.close()
+        d_exp_lr_scheduler.step()
+        g_exp_lr_scheduler.step()      
+        # ----------
+        # 打印结果
+        # ---------
+        if (epoch+1) % 50 == 0:
+            t = datetime.now() #获取现在的时间
+            # print('Time {}, Epoch [{}/{}], Step [{}/{}], d_loss_real:{:.4f} + d_loss_fake:{:.4f} + gradient_penalty:{:.4f} = d_loss: {:.4f}, g_loss: {:.4f}, d_lr={:.6f},g_lr={:.6f}'
+            #     .format(t, epoch, num_epochs, i+1, total_step, d_loss_real.item(), d_loss_fake.item(), gradient_penalty.item(), d_loss.item(), g_loss.item(),
+            #             d_optimizer.param_groups[0]['lr'], g_optimizer.param_groups[0]['lr']))
+            logging.info('Time {}, Epoch [{}/{}], Step [{}/{}], d_loss_real:{:.4f} + d_loss_fake:{:.4f} + gradient_penalty:{:.4f} = d_loss: {:.4f}, g_loss: {:.4f}, d_lr={:.6f},g_lr={:.6f}'
+                .format(t, epoch, num_epochs, i+1, total_step, d_loss_real.item(), d_loss_fake.item(), gradient_penalty.item(), d_loss.item(), g_loss.item(),
+                        d_optimizer.param_groups[0]['lr'], g_optimizer.param_groups[0]['lr']))
+            
         # -----------
         # 结果的保存
         # ----------
         # 每一个epoch显示图片(这里切换为eval模式)
-        if (epoch + 1) % 10 == 0:
+        if (epoch + 1) % 300 == 0:
             G.eval()
             test_images = G(test_noise)
             save_image(denorm(test_images), os.path.join(sample_dir, 'fake_images-norm-{}.png'.format(epoch+1)))
