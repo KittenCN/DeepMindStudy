@@ -1,0 +1,12 @@
+*__pycache__*
+*.pyc
+db.sqlite3
+*.DS_Store
+media/
+res/
+logs/
+.vscode/
+save/
+data/
+wandb/
+test/
