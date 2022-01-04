@@ -13,6 +13,8 @@ from torchvision.utils import save_image
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 img_size = 128
+g_file = r'D:\workstation\GitHub\DeepMindStudy\WGAN\model\G.ckpt'
+d_file = r'D:\workstation\GitHub\DeepMindStudy\WGAN\model\D.ckpt'
 
 # --------
 # 定义网络
@@ -85,7 +87,7 @@ def denorm(x):
 
 if __name__ == "__main__":
     # 将日志保存到文件
-    logging.basicConfig(filename='logger.log',level=logging.INFO)
+    logging.basicConfig(filename='logger.log',level=logging.DEBUG)
     # ----------
     # 加载数据集
     # ----------
@@ -105,6 +107,17 @@ if __name__ == "__main__":
     # ----------
     D = Discriminator().to(device) # 定义分类器
     G = Generator().to(device) # 定义生成器
+    print(D)
+    print(G)
+    if os.path.exists(g_file) and os.path.exists(d_file):
+        G.load_state_dict(torch.load(g_file))
+        D.load_state_dict(torch.load(d_file))
+        G.eval()
+        D.eval()
+        print("load old model")
+    else:
+        print("new model")
+ 
     # -----------------------
     # 定义损失函数和优化器
     # -----------------------
@@ -209,6 +222,6 @@ if __name__ == "__main__":
             test_images = G(test_noise)
             save_image(denorm(test_images), os.path.join(sample_dir, 'fake_images-norm-{}.png'.format(epoch+1)))
             # Save the model checkpoints 
-            torch.save(G.state_dict(), r'D:\workstation\GitHub\DeepMindStudy\WGAN\model\G.ckpt')
-            torch.save(D.state_dict(), r'D:\workstation\GitHub\DeepMindStudy\WGAN\model\D.ckpt')
+            torch.save(G.state_dict(), g_file)
+            torch.save(D.state_dict(), d_file)
     bar.close()
