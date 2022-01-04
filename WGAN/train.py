@@ -1,203 +1,214 @@
-import torch as t
-from torch import nn
-from torch.autograd import Variable
-from torch.optim import RMSprop
-from torchvision import transforms
-from torchvision.utils import make_grid
-from torchvision.datasets import CIFAR10
-from pylab import plt
-from tqdm import tqdm
-
 import os
-os.environ['CUDA_VISIBLE_DEVICES']='0'
+import matplotlib.pyplot as plt
+from datetime import date,datetime
+import logging
+from tqdm import tqdm
+import torch
+from torch import nn
+from torchvision import datasets, transforms
+from torch import optim
+from torch.autograd import Variable
+from torchvision.utils import make_grid
+from torchvision.utils import save_image
 
-'''
-https://zhuanlan.zhihu.com/p/25071913
-WGAN modified of DCGAN in:
-1. remove sigmoid in the last layer of discriminator(classification -> regression)                                       
-# 回归问题,而不是二分类概率
-2. no log Loss (Wasserstein distance)
-3. clip param norm to c (Wasserstein distance and Lipschitz continuity)
-4. No momentum-based optimizer, use RMSProp，SGD instead
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+img_size = 128
 
-explanation of GAN：
-collapse mode ->KL diverse
-digit unstability-> comflict between KL Divergence and JS Divergence
-'''
-class Config:
-    lr = 0.00005
-    nz = 100 # noise dimension
-    image_size = 64
-    image_size2 = 64
-    nc = 3 # chanel of img 
-    ngf = 64 # generate channel
-    ndf = 64 # discriminative channel
-    beta1 = 0.5
-    batch_size = 32
-    max_epoch = 50 # =1 when debug
-    workers = 2
-    gpu = True # use gpu or not
-    clamp_num=0.01# WGAN clip gradient
+# --------
+# 定义网络
+# --------
+class Discriminator(nn.Module):
+    def __init__(self):
+        super(Discriminator, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=img_size, kernel_size=4, stride=2, padding=1, bias=False)
+        self.batchN1 = nn.BatchNorm2d(img_size)
+        self.LeakyReLU1 = nn.LeakyReLU(0.2, inplace=True)
+        
+        self.conv2 = nn.Conv2d(in_channels=img_size, out_channels=img_size*2, kernel_size=4, stride=2, padding=1, bias=False)
+        self.batchN2 = nn.BatchNorm2d(img_size*2)
+        self.LeakyReLU2 = nn.LeakyReLU(0.2, inplace=True)       
 
-def weight_init(m):
-        # weight_initialization: important for wgan
-        class_name=m.__class__.__name__
-        if class_name.find('Conv')!=-1:
-            m.weight.data.normal_(0,0.02)
-        elif class_name.find('Norm')!=-1:
-            m.weight.data.normal_(1.0,0.02)
-    #     else:print(class_name)
+        self.conv3 = nn.Conv2d(in_channels=img_size*2, out_channels=img_size*4, kernel_size=4, stride=2, padding=1, bias=False)
+        self.batchN3 = nn.BatchNorm2d(img_size*4)
+        self.LeakyReLU3 = nn.LeakyReLU(0.2, inplace=True)
+        
+        self.conv4 = nn.Conv2d(in_channels=img_size*4, out_channels=img_size*8, kernel_size=4, stride=2, padding=1, bias=False)
+        self.batchN4 = nn.BatchNorm2d(img_size*8)
+        self.LeakyReLU4 = nn.LeakyReLU(0.2, inplace=True)
+        
+        self.conv5 = nn.Conv2d(in_channels=img_size*8, out_channels=1, kernel_size=4, bias=False)
+        self.sigmoid = nn.Sigmoid()
+        
+    def forward(self, x):
+        x = self.LeakyReLU1(self.batchN1(self.conv1(x)))
+        x = self.LeakyReLU2(self.batchN2(self.conv2(x)))
+        x = self.LeakyReLU3(self.batchN3(self.conv3(x)))
+        x = self.LeakyReLU4(self.batchN4(self.conv4(x)))
+        x = self.conv5(x)
+        return x
+
+class Generator(nn.Module):
+    def __init__(self):
+        super(Generator, self).__init__()
+        self.ConvT1 = nn.ConvTranspose2d(in_channels=100, out_channels=img_size*8, kernel_size=4, bias=False) # 这里的in_channels是和初始的随机数有关
+        self.batchN1 = nn.BatchNorm2d(img_size*8)
+        self.relu1 = nn.ReLU()
+        
+        self.ConvT2 = nn.ConvTranspose2d(in_channels=img_size*8, out_channels=img_size*4, kernel_size=4, stride=2, padding=1, bias=False) # 这里的in_channels是和初始的随机数有关
+        self.batchN2 = nn.BatchNorm2d(img_size*4)
+        self.relu2 = nn.ReLU()        
+        
+        self.ConvT3= nn.ConvTranspose2d(in_channels=img_size*4, out_channels=img_size*2, kernel_size=4, stride=2, padding=1, bias=False) # 这里的in_channels是和初始的随机数有关
+        self.batchN3 = nn.BatchNorm2d(img_size*2)
+        self.relu3 = nn.ReLU()
+
+        self.ConvT4 = nn.ConvTranspose2d(in_channels=img_size*2, out_channels=img_size, kernel_size=4, stride=2, padding=1, bias=False) # 这里的in_channels是和初始的随机数有关
+        self.batchN4 = nn.BatchNorm2d(img_size)
+        self.relu4 = nn.ReLU()
+        
+        self.ConvT5 = nn.ConvTranspose2d(in_channels=img_size, out_channels=3, kernel_size=4, stride=2, padding=1, bias=False)
+        self.tanh = nn.Tanh() # 激活函数
+        
+    def forward(self, x):
+        x = self.relu1(self.batchN1(self.ConvT1(x)))
+        x = self.relu2(self.batchN2(self.ConvT2(x)))
+        x = self.relu3(self.batchN3(self.ConvT3(x)))
+        x = self.relu4(self.batchN4(self.ConvT4(x)))
+        x = self.ConvT5(x)
+        x = self.tanh(x)
+        return x
+
+# 定义辅助函数
+def denorm(x):
+    out = (x + 1) / 2
+    return out.clamp(0, 1)
 
 if __name__ == "__main__":
-    opt=Config()
-
-    # data preprocess
-    transform=transforms.Compose([
-                    transforms.Resize(opt.image_size) ,
-                    transforms.ToTensor(),
-                    transforms.Normalize([0.5]*3,[0.5]*3)
-                    ])
-
-    dataset=CIFAR10(root=r'D:\workstation\GitHub\DeepMindStudy\data\cifar10\data',transform=transform,download=True)
-    # dataloader with multiprocessing
-    dataloader=t.utils.data.DataLoader(dataset,
-                                    opt.batch_size,
-                                    shuffle = True,
-                                    num_workers=opt.workers)
-
-    # 搭建模型
-    netg = nn.Sequential(
-                nn.ConvTranspose2d(opt.nz,opt.ngf*8,4,1,0,bias=False),
-                nn.BatchNorm2d(opt.ngf*8),
-                nn.ReLU(True),
-                
-                nn.ConvTranspose2d(opt.ngf*8,opt.ngf*4,4,2,1,bias=False),
-                nn.BatchNorm2d(opt.ngf*4),
-                nn.ReLU(True),
-                
-                nn.ConvTranspose2d(opt.ngf*4,opt.ngf*2,4,2,1,bias=False),
-                nn.BatchNorm2d(opt.ngf*2),
-                nn.ReLU(True),
-                
-                nn.ConvTranspose2d(opt.ngf*2,opt.ngf,4,2,1,bias=False),
-                nn.BatchNorm2d(opt.ngf),
-                nn.ReLU(True),
-                
-                nn.ConvTranspose2d(opt.ngf,opt.nc,4,2,1,bias=False),
-                nn.Tanh()
-            )
-
-    netd = nn.Sequential(
-                nn.Conv2d(opt.nc,opt.ndf,4,2,1,bias=False),
-                nn.LeakyReLU(0.2,inplace=True),
-                
-                nn.Conv2d(opt.ndf,opt.ndf*2,4,2,1,bias=False),
-                nn.BatchNorm2d(opt.ndf*2),
-                nn.LeakyReLU(0.2,inplace=True),
-                
-                nn.Conv2d(opt.ndf*2,opt.ndf*4,4,2,1,bias=False),
-                nn.BatchNorm2d(opt.ndf*4),
-                nn.LeakyReLU(0.2,inplace=True),
-                
-                nn.Conv2d(opt.ndf*4,opt.ndf*8,4,2,1,bias=False),
-                nn.BatchNorm2d(opt.ndf*8),
-                nn.LeakyReLU(0.2,inplace=True),
-                
-                nn.Conv2d(opt.ndf*8,1,4,1,0,bias=False),
-                # Modification 1: remove sigmoid
-                # nn.Sigmoid()
-            )
-
-    netd.apply(weight_init)
-    netg.apply(weight_init)
-
-    # modification 2: Use RMSprop instead of Adam
-    # optimizer
-    optimizerD = RMSprop(netd.parameters(),lr=opt.lr ) 
-    optimizerG = RMSprop(netg.parameters(),lr=opt.lr )  
-
-    # modification3: No Log in loss
-    # criterion
-    # criterion = nn.BCELoss()
-
-    fix_noise = Variable(t.FloatTensor(opt.batch_size,opt.nz,1,1).normal_(0,1))
-    if opt.gpu:
-        fix_noise = fix_noise.cuda()
-        netd.cuda()
-        netg.cuda()
-
-    print(netd)
-    print(netg)
-
-    # begin training
-    print('begin training, be patient...')
-    # one=t.FloatTensor([1])
-    # one = t.tensor(1, dtype=t.float)
-    one = t.rand(32, 1, 1, 1)
-    mone=-1*one
-
-    bar = tqdm(total = opt.max_epoch)
-    for epoch in range(opt.max_epoch):
+    # 将日志保存到文件
+    logging.basicConfig(filename='logger.log',level=logging.INFO)
+    # ----------
+    # 加载数据集
+    # ----------
+    trans = transforms.Compose([
+        transforms.Resize(img_size),
+        transforms.ToTensor(),
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+    ])
+    dataset = datasets.ImageFolder(r'D:\workstation\GitHub\DeepMindStudy\data\emoji\data', transform=trans) # 数据路径
+    dataloader = torch.utils.data.DataLoader(dataset,
+                                        batch_size=16, # 批量大小
+                                        shuffle=True, # 乱序
+                                        num_workers=2 # 多进程
+                                        )
+    # ----------
+    # 初始化网络
+    # ----------
+    D = Discriminator().to(device) # 定义分类器
+    G = Generator().to(device) # 定义生成器
+    # -----------------------
+    # 定义损失函数和优化器
+    # -----------------------
+    learning_rate = 0.0002
+    d_optimizer = torch.optim.Adam(D.parameters(), lr=learning_rate, betas=(0.5, 0.9))
+    g_optimizer = torch.optim.Adam(G.parameters(), lr=learning_rate, betas=(0.5, 0.9))
+    # 每3次降低学习率
+    d_exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(d_optimizer, step_size=100, gamma=0.95)
+    g_exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(g_optimizer, step_size=100, gamma=0.95)
+    # 定义惩罚系数
+    penalty_lambda = 0.1
+    # --------
+    # 开始训练
+    # --------
+    num_epochs = 1000
+    sample_dir = r'D:\workstation\GitHub\DeepMindStudy\WGAN\resulte'
+    test_noise = Variable(torch.FloatTensor(40, 100, 5, 5).normal_(0, 1)).to(device) # 用于测试绘图
+    total_step = len(dataloader) # 依次epoch的步骤
+    # ------------------
+    # 一开始学习率快一些
+    # ------------------
+    bar = tqdm(total=num_epochs, leave=False)
+    for epoch in range(num_epochs):
         bar.update(1)
-        subbar = tqdm(total = len(dataloader), leave = False)
-        for ii, data in enumerate(dataloader,0):
+        subbar = tqdm(total=len(dataloader), leave=False)
+        for i, (images, _) in enumerate(dataloader):
             subbar.update(1)
-            real,_=data
-            input = Variable(real)
-            noise = t.randn(input.size(0),opt.nz,1,1)
-            noise = Variable(noise)
+            batch_size = images.size(0)
+            images = images.reshape(batch_size, 3, img_size, img_size).to(device)
+            # 创造real label和fake label
+            real_labels = torch.ones(batch_size, 1).to(device) # real的pic的label都是1
+            fake_labels = torch.zeros(batch_size, 1).to(device) # fake的pic的label都是0
+            noise = Variable(torch.randn(batch_size, 100, 5, 5)).to(device) # 随机噪声，生成器输入
+            # ---------------------
+            # 开始训练discriminator
+            # ---------------------
+            D.train()
+            G.train()
+            # 首先计算真实的图片
+            outputs = D(images)
+            d_loss_real = -torch.mean(outputs)
             
-            if opt.gpu:
-                one = one.cuda()
-                mone = mone.cuda()
-                noise = noise.cuda()
-                input = input.cuda()
+            # 接着使用生成器训练得到图片, 放入判别器
+            fake_images = G(noise)
+            outputs = D(fake_images)
+            d_loss_fake = torch.mean(outputs)
 
-            # modification: clip param for discriminator
-            for parm in netd.parameters():
-                    parm.data.clamp_(-opt.clamp_num,opt.clamp_num)
+            # 生成gradient penalty
+
+            # 1. P_data与P_G的中间区域
+            alpha = torch.rand((batch_size, 1, 1, 1)).to(device)
+            # print(images.size())
+            # print(fake_images.size())
+            x_hat = alpha * images.data + (1 - alpha) * fake_images.data
+            x_hat.requires_grad = True
+
+            # 2. 计算penalty region处的梯度
+            pred_hat = D(x_hat)
+            gradient = torch.autograd.grad(outputs=pred_hat, inputs=x_hat, grad_outputs=torch.ones(pred_hat.size()).to(device), create_graph=True, retain_graph=True) # 计算梯度
+            gradient_penalty = penalty_lambda * ((gradient[0].view(gradient[0].size()[0], -1).norm(p=2,dim=1)-1)**2).mean()
             
-            # ----- train netd -----
-            netd.zero_grad()
-            ## train netd with real img
-            output=netd(input)
-            output.backward(one)
-            ## train netd with fake img
-            fake_pic=netg(noise).detach()
-            output2=netd(fake_pic)
-            output2.backward(mone)
-            optimizerD.step()
+            # 三个loss相加, 反向传播进行优化
+            d_loss = d_loss_real + d_loss_fake + gradient_penalty
+            g_optimizer.zero_grad() # 两个优化器梯度都要清0
+            d_optimizer.zero_grad()
+            d_loss.backward()
+            d_optimizer.step()
+            d_exp_lr_scheduler.step()
+                
+            # ------------------------------------
+            # 开始训练generator(多训练几轮D, 在训练G)
+            # ------------------------------------
+            if (i + 1) % 2 == 0:
+                normal_noise = Variable(torch.randn(batch_size, 100, 5, 5)).normal_(0, 1).to(device)
+                fake_images = G(normal_noise) # 生成假的图片
+                outputs = D(fake_images) # 放入辨别器
+                g_loss = -torch.mean(outputs) # 希望生成器生成的图片判别器可以判别为真
+                d_optimizer.zero_grad()
+                g_optimizer.zero_grad()
+                g_loss.backward()
+                g_optimizer.step()
+                g_exp_lr_scheduler.step()
             
-            # ------ train netg -------
-            # train netd more: because the better netd is,
-            # the better netg will be
-            if (ii+1)%5 ==0:
-                netg.zero_grad()
-                noise.data.normal_(0,1)
-                fake_pic=netg(noise)
-                output=netd(fake_pic)
-                output.backward(one)
-                optimizerG.step()
-                if ii%100==0:pass
-        subbar.close()
-        fake_u=netg(fix_noise)
-        imgs = make_grid(fake_u.data*0.5+0.5).cpu() # CHW
-        # plt.imshow(imgs.permute(1,2,0).numpy()) # HWC
-        # plt.show()
-        plt.savefig('WGAN/output/' + str(epoch) + '-' + str(ii) + '.png')
+            # ----------
+            # 打印结果
+            # ---------
+            if (i+2) % 20 == 0:
+                t = datetime.now() #获取现在的时间
+                # print('Time {}, Epoch [{}/{}], Step [{}/{}], d_loss_real:{:.4f} + d_loss_fake:{:.4f} + gradient_penalty:{:.4f} = d_loss: {:.4f}, g_loss: {:.4f}, d_lr={:.6f},g_lr={:.6f}'
+                #     .format(t, epoch, num_epochs, i+1, total_step, d_loss_real.item(), d_loss_fake.item(), gradient_penalty.item(), d_loss.item(), g_loss.item(),
+                #             d_optimizer.param_groups[0]['lr'], g_optimizer.param_groups[0]['lr']))
+                logging.info('Time {}, Epoch [{}/{}], Step [{}/{}], d_loss_real:{:.4f} + d_loss_fake:{:.4f} + gradient_penalty:{:.4f} = d_loss: {:.4f}, g_loss: {:.4f}, d_lr={:.6f},g_lr={:.6f}'
+                    .format(t, epoch, num_epochs, i+1, total_step, d_loss_real.item(), d_loss_fake.item(), gradient_penalty.item(), d_loss.item(), g_loss.item(),
+                            d_optimizer.param_groups[0]['lr'], g_optimizer.param_groups[0]['lr']))
+            subbar.close()
+        # -----------
+        # 结果的保存
+        # ----------
+        # 每一个epoch显示图片(这里切换为eval模式)
+        if (epoch + 1) % 10 == 0:
+            G.eval()
+            test_images = G(test_noise)
+            save_image(denorm(test_images), os.path.join(sample_dir, 'fake_images-norm-{}.png'.format(epoch+1)))
+            # Save the model checkpoints 
+            torch.save(G.state_dict(), r'D:\workstation\GitHub\DeepMindStudy\WGAN\model\G.ckpt')
+            torch.save(D.state_dict(), r'D:\workstation\GitHub\DeepMindStudy\WGAN\model\D.ckpt')
     bar.close()
-
-    t.save(netd.state_dict(),r'WGAN\modelepoch_wnetd.pth')
-    t.save(netg.state_dict(),r'WGAN\modelepoch_wnetg.pth')
-
-    netd.load_state_dict(t.load(r'WGAN\model\epoch_wnetd.pth'))
-    netg.load_state_dict(t.load(r'WGAN\modelepoch_wnetg.pth'))
-
-    noise = t.randn(64,opt.nz,1,1).cuda()
-    noise = Variable(noise)
-    fake_u=netg(noise)
-    imgs = make_grid(fake_u.data*0.5+0.5).cpu() # CHW
-    plt.figure(figsize=(5,5))
-    # plt.imshow(imgs.permute(1,2,0).numpy()) # HWC
-    # plt.show()
-    plt.savefig(r'WGAN\output\lastresult.png')
