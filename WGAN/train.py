@@ -15,8 +15,8 @@ from torch.utils.tensorboard import SummaryWriter
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 g_file = r'D:\workstation\GitHub\DeepMindStudy\WGAN\model\G.ckpt'
 d_file = r'D:\workstation\GitHub\DeepMindStudy\WGAN\model\D.ckpt'
-img_size = 64
-img_rate = 1  # 64:1, 128:5
+img_size = 128
+img_rate = 5  # 64:1, 128:5
 base_channels = img_size
 img_folder = r'D:\workstation\GitHub\DeepMindStudy\data\emoji\data'
 sample_dir = r'D:\workstation\GitHub\DeepMindStudy\WGAN\results'
@@ -104,7 +104,7 @@ if __name__ == "__main__":
     ])
     dataset = datasets.ImageFolder(img_folder, transform=trans) # 数据路径
     dataloader = torch.utils.data.DataLoader(dataset,
-                                        batch_size=128, # 批量大小
+                                        batch_size=64, # 批量大小
                                         shuffle=True, # 乱序
                                         num_workers=6 # 多进程
                                         )
@@ -131,14 +131,14 @@ if __name__ == "__main__":
     d_optimizer = torch.optim.Adam(D.parameters(), lr=learning_rate, betas=(0.5, 0.9))
     g_optimizer = torch.optim.Adam(G.parameters(), lr=learning_rate, betas=(0.5, 0.9))
     # 每3次降低学习率
-    d_exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(d_optimizer, step_size=300, gamma=0.97)
-    g_exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(g_optimizer, step_size=300, gamma=0.97)
+    d_exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(d_optimizer, step_size=1000, gamma=0.95)
+    g_exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(g_optimizer, step_size=1000, gamma=0.95)
     # 定义惩罚系数
     penalty_lambda = 0.1
     # --------
     # 开始训练
     # --------
-    num_epochs = 100000
+    num_epochs = 10000
     test_noise = Variable(torch.FloatTensor(40, 100, img_rate, img_rate).normal_(0, 1)).to(device) # 用于测试绘图
     total_step = len(dataloader) # 依次epoch的步骤
     # ------------------
@@ -228,8 +228,8 @@ if __name__ == "__main__":
         if (epoch + 1) % 300 == 0:
             G.eval()
             test_images = G(test_noise)
-            writer.add_image('fake_images-norm-{}.png'.format(epoch+1), test_images, 1, dataformats='HWC')
-            # save_image(denorm(test_images), os.path.join(sample_dir, 'fake_images-norm-{}.png'.format(epoch+1)))
+#             writer.add_image('fake_images-norm-{}.png'.format(epoch+1), test_images, 1, dataformats='HWC')
+            save_image(denorm(test_images), os.path.join(sample_dir, 'fake_images-norm-{}.png'.format(epoch+1)))
             # Save the model checkpoints 
             torch.save(G.state_dict(), g_file)
             torch.save(D.state_dict(), d_file)
