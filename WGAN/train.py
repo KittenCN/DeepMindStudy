@@ -10,6 +10,7 @@ from torch import optim
 from torch.autograd import Variable
 from torchvision.utils import make_grid
 from torchvision.utils import save_image
+from torch.utils.tensorboard import SummaryWriter  
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 g_file = r'D:\workstation\GitHub\DeepMindStudy\WGAN\model\G.ckpt'
@@ -19,6 +20,7 @@ img_rate = 1  # 64:1, 128:5
 base_channels = img_size
 img_folder = r'D:\workstation\GitHub\DeepMindStudy\data\emoji\data'
 sample_dir = r'D:\workstation\GitHub\DeepMindStudy\WGAN\results'
+writer = SummaryWriter(r'D:\workstation\GitHub\DeepMindStudy\WGAN\tf-logs')
 
 # --------
 # 定义网络
@@ -129,8 +131,8 @@ if __name__ == "__main__":
     d_optimizer = torch.optim.Adam(D.parameters(), lr=learning_rate, betas=(0.5, 0.9))
     g_optimizer = torch.optim.Adam(G.parameters(), lr=learning_rate, betas=(0.5, 0.9))
     # 每3次降低学习率
-    d_exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(d_optimizer, step_size=300, gamma=0.95)
-    g_exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(g_optimizer, step_size=300, gamma=0.95)
+    d_exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(d_optimizer, step_size=300, gamma=0.97)
+    g_exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(g_optimizer, step_size=300, gamma=0.97)
     # 定义惩罚系数
     penalty_lambda = 0.1
     # --------
@@ -214,6 +216,10 @@ if __name__ == "__main__":
             logging.info('Time {}, Epoch [{}/{}], Step [{}/{}], d_loss_real:{:.4f} + d_loss_fake:{:.4f} + gradient_penalty:{:.4f} = d_loss: {:.4f}, g_loss: {:.4f}, d_lr={:.6f},g_lr={:.6f}'
                 .format(t, epoch, num_epochs, i+1, total_step, d_loss_real.item(), d_loss_fake.item(), gradient_penalty.item(), d_loss.item(), g_loss.item(),
                         d_optimizer.param_groups[0]['lr'], g_optimizer.param_groups[0]['lr']))
+            writer.add_scalar('loss/d_loss_real', d_loss_real.item(), epoch)
+            writer.add_scalar('loss/d_loss_fake', d_loss_fake.item(), epoch)
+            writer.add_scalar('loss/d_loss', d_loss.item(), epoch)
+            writer.add_scalar('loss/g_loss', g_loss.item(), epoch)
             
         # -----------
         # 结果的保存
@@ -222,7 +228,8 @@ if __name__ == "__main__":
         if (epoch + 1) % 300 == 0:
             G.eval()
             test_images = G(test_noise)
-            save_image(denorm(test_images), os.path.join(sample_dir, 'fake_images-norm-{}.png'.format(epoch+1)))
+            writer.add_image('fake_images-norm-{}.png'.format(epoch+1), test_images, 1, dataformats='HWC')
+            # save_image(denorm(test_images), os.path.join(sample_dir, 'fake_images-norm-{}.png'.format(epoch+1)))
             # Save the model checkpoints 
             torch.save(G.state_dict(), g_file)
             torch.save(D.state_dict(), d_file)
