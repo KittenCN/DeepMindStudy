@@ -16,6 +16,8 @@ SAVE_PER_TIMES = 100
 writer = SummaryWriter(r'/root/tf-logs')
 dim = 128
 rate = 13  # 1:32 13:128 29:256
+g_file = r'./generator.pkl'
+d_file = r'./discriminator.pkl'
 
 class Generator(torch.nn.Module):
     def __init__(self, channels):
@@ -95,6 +97,18 @@ class WGAN_GP(object):
         self.G = Generator(args.channels)
         self.D = Discriminator(args.channels)
         self.C = args.channels
+        
+        print(self.G)
+        print(self.D)
+        
+        if os.path.exists(g_file) and os.path.exists(d_file):
+            self.G.load_state_dict(torch.load(g_file))
+            self.D.load_state_dict(torch.load(d_file))
+            self.G.eval()
+            self.D.eval()
+            print("load old model")
+        else:
+            print("new model")
 
         # Check if cuda is available
         self.check_cuda(args.cuda)
@@ -217,6 +231,8 @@ class WGAN_GP(object):
                 writer.add_scalar('loss/d_loss_fake', d_loss_fake.item(), g_iter)
                 writer.add_scalar('loss/d_loss', d_loss.item(), g_iter)
                 writer.add_scalar('loss/g_loss', g_loss.item(), g_iter)
+                writer.add_scalsr('loss/gradient_penalty', gradient_penalty.item(), g_iter)
+                writer.add_scalar('loss/Wasserstein_D', Wasserstein_D.item(), g_iter)
             
             # Saving model and sampling images every 1000th generator iterations
             if (g_iter) % SAVE_PER_TIMES == 0:
@@ -355,8 +371,8 @@ class WGAN_GP(object):
         return x.data.cpu().numpy()
 
     def save_model(self):
-        torch.save(self.G.state_dict(), './generator.pkl')
-        torch.save(self.D.state_dict(), './discriminator.pkl')
+        torch.save(self.G.state_dict(), g_file)
+        torch.save(self.D.state_dict(), d_file)
         print('Models save to ./generator.pkl & ./discriminator.pkl ')
 
     def load_model(self, D_model_filename, G_model_filename):
