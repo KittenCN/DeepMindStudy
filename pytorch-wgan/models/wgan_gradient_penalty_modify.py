@@ -181,7 +181,7 @@ class WGAN_GP(object):
                 if (images.size()[0] != self.batch_size):
                     continue
 
-                z = torch.rand((self.batch_size, 100, 1, 1))
+                z = torch.rand((self.batch_size, 100, rate, rate))
 
                 images, z = self.get_torch_variable(images), self.get_torch_variable(z)
 
