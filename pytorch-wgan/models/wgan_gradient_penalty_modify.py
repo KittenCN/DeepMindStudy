@@ -14,8 +14,8 @@ from torchvision import utils
 
 SAVE_PER_TIMES = 100
 writer = SummaryWriter(r'/root/tf-logs')
-dim = 256
-rate = 29
+dim = 128
+rate = 13  # 1:32 13:128 29:256
 
 class Generator(torch.nn.Module):
     def __init__(self, channels):
@@ -26,7 +26,7 @@ class Generator(torch.nn.Module):
         self.main_module = nn.Sequential(
             # Z latent vector 100
             nn.ConvTranspose2d(in_channels=100, out_channels=dim * 4, kernel_size=4, stride=1, padding=0),
-            nn.BatchNorm2d(num_features=1024),
+            nn.BatchNorm2d(num_features=dim * 4),
             nn.ReLU(True),
 
             # State (1024x4x4)
