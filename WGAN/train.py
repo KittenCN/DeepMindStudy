@@ -29,23 +29,23 @@ class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=base_channels, kernel_size=4, stride=2, padding=1, bias=False)
-        self.batchN1 = nn.BatchNorm2d(base_channels)
+        self.batchN1 = nn.InstanceNorm2d(base_channels, affine=True)
         self.LeakyReLU1 = nn.LeakyReLU(0.2, inplace=True)
         
         self.conv2 = nn.Conv2d(in_channels=base_channels, out_channels=base_channels*2, kernel_size=4, stride=2, padding=1, bias=False)
-        self.batchN2 = nn.BatchNorm2d(base_channels*2)
+        self.batchN2 = nn.InstanceNorm2d(base_channels*2, affine=True)
         self.LeakyReLU2 = nn.LeakyReLU(0.2, inplace=True)       
 
         self.conv3 = nn.Conv2d(in_channels=base_channels*2, out_channels=base_channels*4, kernel_size=4, stride=2, padding=1, bias=False)
-        self.batchN3 = nn.BatchNorm2d(base_channels*4)
+        self.batchN3 = nn.InstanceNorm2d(base_channels*4, affine=True)
         self.LeakyReLU3 = nn.LeakyReLU(0.2, inplace=True)
         
         self.conv4 = nn.Conv2d(in_channels=base_channels*4, out_channels=base_channels*8, kernel_size=4, stride=2, padding=1, bias=False)
-        self.batchN4 = nn.BatchNorm2d(base_channels*8)
+        self.batchN4 = nn.InstanceNorm2d(base_channels*8, affine=True)
         self.LeakyReLU4 = nn.LeakyReLU(0.2, inplace=True)
         
         self.conv5 = nn.Conv2d(in_channels=base_channels*8, out_channels=1, kernel_size=4, bias=False)
-        self.sigmoid = nn.Sigmoid()
+#         self.sigmoid = nn.Sigmoid()
         
     def forward(self, x):
         x = self.LeakyReLU1(self.batchN1(self.conv1(x)))
