@@ -8,10 +8,16 @@ import matplotlib.pyplot as plt
 plt.switch_backend('agg')
 import os
 # from utils.tensorboard_logger import Logger
+from torch.utils.tensorboard import SummaryWriter  
 from itertools import chain
 from torchvision import utils
 
 SAVE_PER_TIMES = 100
+writer = SummaryWriter(r'/root/tf-logs')
+dim = 128
+rate = 13  # 1:32 13:128 29:256
+g_file = r'./generator.pkl'
+d_file = r'./discriminator.pkl'
 
 class Generator(torch.nn.Module):
     def __init__(self, channels):
@@ -21,35 +27,22 @@ class Generator(torch.nn.Module):
         # Output_dim = C (number of channels)
         self.main_module = nn.Sequential(
             # Z latent vector 100
-            nn.ConvTranspose2d(in_channels=100, out_channels=1024, kernel_size=4, stride=1, padding=0),
-            nn.BatchNorm2d(num_features=1024),
+            nn.ConvTranspose2d(in_channels=100, out_channels=dim * 4, kernel_size=4, stride=1, padding=0),
+            nn.BatchNorm2d(num_features=dim * 4),
             nn.ReLU(True),
 
             # State (1024x4x4)
-            nn.ConvTranspose2d(in_channels=1024, out_channels=512, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(num_features=512),
+            nn.ConvTranspose2d(in_channels=dim * 4, out_channels=dim * 2, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(num_features=dim * 2),
             nn.ReLU(True),
 
             # State (512x8x8)
-            nn.ConvTranspose2d(in_channels=512, out_channels=256, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(num_features=256),
+            nn.ConvTranspose2d(in_channels=dim * 2, out_channels=dim, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(num_features=dim),
             nn.ReLU(True),
 
-            # State (256x16x16)
-            nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(num_features=128),
-            nn.ReLU(True),
-            
-            nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(num_features=64),
-            nn.ReLU(True),
-            
-            nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(num_features=32),
-            nn.ReLU(True),         
-            
-            nn.ConvTranspose2d(in_channels=32, out_channels=channels, kernel_size=4, stride=2, padding=1))
-            # output of main module --> Image (Cx32x32)
+            nn.ConvTranspose2d(in_channels=dim, out_channels=channels, kernel_size=4, stride=2, padding=1))
+            # output of main module --> Image (Cx32x32) 256
 
         self.output = nn.Tanh()
 
@@ -69,40 +62,25 @@ class Discriminator(torch.nn.Module):
             # in this setting, since we penalize the norm of the critic's gradient with respect to each input independently and not the enitre batch.
             # There is not good & fast implementation of layer normalization --> using per instance normalization nn.InstanceNorm2d()
             # Image (Cx32x32)
-            
-            nn.Conv2d(in_channels=channels, out_channels=32, kernel_size=4, stride=2, padding=1),
-            nn.InstanceNorm2d(32, affine=True),
-            nn.LeakyReLU(0.2, inplace=True),
-            
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2, padding=1),
-            nn.InstanceNorm2d(64, affine=True),
-            nn.LeakyReLU(0.2, inplace=True),
-            
-            # 64 * 64
-            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=4, stride=2, padding=1),
-            nn.InstanceNorm2d(128, affine=True),
-            nn.LeakyReLU(0.2, inplace=True),
-            
-            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=4, stride=2, padding=1),
-            nn.InstanceNorm2d(256, affine=True),
+            nn.Conv2d(in_channels=channels, out_channels=dim, kernel_size=4, stride=2, padding=1),
+            nn.InstanceNorm2d(dim, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
             # State (256x16x16)
-            nn.Conv2d(in_channels=256, out_channels=512, kernel_size=4, stride=2, padding=1),
-            nn.InstanceNorm2d(512, affine=True),
+            nn.Conv2d(in_channels=dim, out_channels=dim * 2, kernel_size=4, stride=2, padding=1),
+            nn.InstanceNorm2d(dim * 2, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
             # State (512x8x8)
-            nn.Conv2d(in_channels=512, out_channels=1024, kernel_size=4, stride=2, padding=1),
-            nn.InstanceNorm2d(1024, affine=True),
+            nn.Conv2d(in_channels=dim * 2, out_channels=dim * 4, kernel_size=4, stride=2, padding=1),
+            nn.InstanceNorm2d(dim * 4, affine=True),
             nn.LeakyReLU(0.2, inplace=True))
             # output of main module --> State (1024x4x4)
 
         self.output = nn.Sequential(
             # The output of D is no longer a probability, we do not apply sigmoid at the output of D.
-            nn.Conv2d(in_channels=1024, out_channels=1, kernel_size=4, stride=1, padding=0))
-
-
+            nn.Conv2d(in_channels=dim * 4, out_channels=1, kernel_size=4, stride=1, padding=0))
+        
     def forward(self, x):
         x = self.main_module(x)
         return self.output(x)
@@ -119,10 +97,19 @@ class WGAN_GP(object):
         self.G = Generator(args.channels)
         self.D = Discriminator(args.channels)
         self.C = args.channels
-
+        
         print(self.G)
         print(self.D)
         
+        if os.path.exists(g_file) and os.path.exists(d_file):
+            self.G.load_state_dict(torch.load(g_file))
+            self.D.load_state_dict(torch.load(d_file))
+            self.G.eval()
+            self.D.eval()
+            print("load old model")
+        else:
+            print("new model")
+
         # Check if cuda is available
         self.check_cuda(args.cuda)
 
@@ -132,13 +119,12 @@ class WGAN_GP(object):
         self.b2 = 0.999
 #         self.batch_size = 64
         self.batch_size = args.batch_size
-        print("batch_size: ", self.batch_size)
 
         # WGAN_gradient penalty uses ADAM
         self.d_optimizer = optim.Adam(self.D.parameters(), lr=self.learning_rate, betas=(self.b1, self.b2))
         self.g_optimizer = optim.Adam(self.G.parameters(), lr=self.learning_rate, betas=(self.b1, self.b2))
 
-#         Set the logger
+        # Set the logger
 #         self.logger = Logger('./logs')
 #         self.logger.writer.flush()
         self.number_of_images = 10
@@ -186,7 +172,6 @@ class WGAN_GP(object):
             d_loss_real = 0
             d_loss_fake = 0
             Wasserstein_D = 0
-
             # Train Dicriminator forward-loss-backward-update self.critic_iter times while 1 Generator forward-loss-backward-update
             for d_iter in range(self.critic_iter):
                 self.D.zero_grad()
@@ -196,7 +181,7 @@ class WGAN_GP(object):
                 if (images.size()[0] != self.batch_size):
                     continue
 
-                z = torch.rand((self.batch_size, 100, 1, 1))
+                z = torch.rand((self.batch_size, 100, rate, rate))
 
                 images, z = self.get_torch_variable(images), self.get_torch_variable(z)
 
@@ -208,7 +193,7 @@ class WGAN_GP(object):
                 d_loss_real.backward(mone)
 
                 # Train with fake images
-                z = self.get_torch_variable(torch.randn(self.batch_size, 100, 1, 1))
+                z = self.get_torch_variable(torch.randn(self.batch_size, 100, rate, rate))
 
                 fake_images = self.G(z)
                 d_loss_fake = self.D(fake_images)
@@ -232,7 +217,7 @@ class WGAN_GP(object):
             self.G.zero_grad()
             # train generator
             # compute loss with fake images
-            z = self.get_torch_variable(torch.randn(self.batch_size, 100, 1, 1))
+            z = self.get_torch_variable(torch.randn(self.batch_size, 100, rate, rate))
             fake_images = self.G(z)
             g_loss = self.D(fake_images)
             g_loss = g_loss.mean()
@@ -240,6 +225,15 @@ class WGAN_GP(object):
             g_cost = -g_loss
             self.g_optimizer.step()
             print(f'Generator iteration: {g_iter}/{self.generator_iters}, g_loss: {g_loss}')
+            
+            if g_iter % 10 ==0:
+                writer.add_scalar('loss/d_loss_real', d_loss_real.item(), g_iter)
+                writer.add_scalar('loss/d_loss_fake', d_loss_fake.item(), g_iter)
+                writer.add_scalar('loss/d_loss', d_loss.item(), g_iter)
+                writer.add_scalar('loss/g_loss', g_loss.item(), g_iter)
+                writer.add_scalsr('loss/gradient_penalty', gradient_penalty.item(), g_iter)
+                writer.add_scalar('loss/Wasserstein_D', Wasserstein_D.item(), g_iter)
+            
             # Saving model and sampling images every 1000th generator iterations
             if (g_iter) % SAVE_PER_TIMES == 0:
                 self.save_model()
@@ -264,7 +258,7 @@ class WGAN_GP(object):
                     os.makedirs('training_result_images/')
 
                 # Denormalize images and save them in grid 8x8
-                z = self.get_torch_variable(torch.randn(800, 100, 1, 1))
+                z = self.get_torch_variable(torch.randn(800, 100, rate, rate))
                 samples = self.G(z)
                 samples = samples.mul(0.5).add(0.5)
                 samples = samples.data.cpu()[:64]
@@ -285,16 +279,16 @@ class WGAN_GP(object):
 #                 # ============ TensorBoard logging ============#
 #                 # (1) Log the scalar values
 #                 info = {
-#                     'Wasserstein distance': Wasserstein_D,
-#                     'Loss D': d_loss,
+#                     'Wasserstein distance': Wasserstein_D.data,
+#                     'Loss D': d_loss.data,
 #                     'Loss G': g_cost.data,
-#                     'Loss D Real': d_loss_real,
-#                     'Loss D Fake': d_loss_fake
+#                     'Loss D Real': d_loss_real.data,
+#                     'Loss D Fake': d_loss_fake.data
 
 #                 }
 
 #                 for tag, value in info.items():
-#                     self.logger.scalar_summary(tag, value, g_iter + 1)
+#                     self.logger.scalar_summary(tag, value.cpu(), g_iter + 1)
 
 #                 # (3) Log the images
 #                 info = {
@@ -316,7 +310,7 @@ class WGAN_GP(object):
 
     def evaluate(self, test_loader, D_model_path, G_model_path):
         self.load_model(D_model_path, G_model_path)
-        z = self.get_torch_variable(torch.randn(self.batch_size, 100, 1, 1))
+        z = self.get_torch_variable(torch.randn(self.batch_size, 100, rate, rate))
         samples = self.G(z)
         samples = samples.mul(0.5).add(0.5)
         samples = samples.data.cpu()
@@ -332,7 +326,8 @@ class WGAN_GP(object):
             eta = eta.cuda(self.cuda_index)
         else:
             eta = eta
-
+#         print(real_images.size())
+#         print(fake_images.size())
         interpolated = eta * real_images + ((1 - eta) * fake_images)
 
         if self.cuda:
@@ -358,26 +353,26 @@ class WGAN_GP(object):
 
     def real_images(self, images, number_of_images):
         if (self.C == 3):
-            return self.to_np(images.view(-1, self.C, 256, 256)[:self.number_of_images])
+            return self.to_np(images.view(-1, self.C, dim, dim)[:self.number_of_images])
         else:
-            return self.to_np(images.view(-1, 256, 256)[:self.number_of_images])
+            return self.to_np(images.view(-1, dim, dim)[:self.number_of_images])
 
     def generate_img(self, z, number_of_images):
         samples = self.G(z).data.cpu().numpy()[:number_of_images]
         generated_images = []
         for sample in samples:
             if self.C == 3:
-                generated_images.append(sample.reshape(self.C, 256, 256))
+                generated_images.append(sample.reshape(self.C, dim, dim))
             else:
-                generated_images.append(sample.reshape(256, 256))
+                generated_images.append(sample.reshape(dim, dim))
         return generated_images
 
     def to_np(self, x):
         return x.data.cpu().numpy()
 
     def save_model(self):
-        torch.save(self.G.state_dict(), './generator.pkl')
-        torch.save(self.D.state_dict(), './discriminator.pkl')
+        torch.save(self.G.state_dict(), g_file)
+        torch.save(self.D.state_dict(), d_file)
         print('Models save to ./generator.pkl & ./discriminator.pkl ')
 
     def load_model(self, D_model_filename, G_model_filename):
@@ -399,9 +394,9 @@ class WGAN_GP(object):
 
         number_int = 10
         # interpolate between twe noise(z1, z2).
-        z_intp = torch.FloatTensor(1, 100, 1, 1)
-        z1 = torch.randn(1, 100, 1, 1)
-        z2 = torch.randn(1, 100, 1, 1)
+        z_intp = torch.FloatTensor(1, 100, rate, rate)
+        z1 = torch.randn(1, 100, rate, rate)
+        z2 = torch.randn(1, 100, rate, rate)
         if self.cuda:
             z_intp = z_intp.cuda()
             z1 = z1.cuda()
@@ -416,7 +411,7 @@ class WGAN_GP(object):
             alpha += alpha
             fake_im = self.G(z_intp)
             fake_im = fake_im.mul(0.5).add(0.5) #denormalize
-            images.append(fake_im.view(self.C,256,256).data.cpu())
+            images.append(fake_im.view(self.C,dim,dim).data.cpu())
 
         grid = utils.make_grid(images, nrow=number_int )
         utils.save_image(grid, 'interpolated_images/interpolated_{}.png'.format(str(number).zfill(3)))

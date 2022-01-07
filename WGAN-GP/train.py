@@ -29,23 +29,109 @@ class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=base_channels, kernel_size=4, stride=2, padding=1, bias=False)
-        self.batchN1 = nn.BatchNorm2d(base_channels)
+        self.batchN1 = nn.InstanceNorm2d(base_channels, affine=True)
         self.LeakyReLU1 = nn.LeakyReLU(0.2, inplace=True)
         
         self.conv2 = nn.Conv2d(in_channels=base_channels, out_channels=base_channels*2, kernel_size=4, stride=2, padding=1, bias=False)
-        self.batchN2 = nn.BatchNorm2d(base_channels*2)
+        self.batchN2 = nn.InstanceNorm2d(base_channels*2, affine=True)
         self.LeakyReLU2 = nn.LeakyReLU(0.2, inplace=True)       
 
         self.conv3 = nn.Conv2d(in_channels=base_channels*2, out_channels=base_channels*4, kernel_size=4, stride=2, padding=1, bias=False)
-        self.batchN3 = nn.BatchNorm2d(base_channels*4)
+        self.batchN3 = nn.InstanceNorm2d(base_channels*4, affine=True)
         self.LeakyReLU3 = nn.LeakyReLU(0.2, inplace=True)
         
         self.conv4 = nn.Conv2d(in_channels=base_channels*4, out_channels=base_channels*8, kernel_size=4, stride=2, padding=1, bias=False)
-        self.batchN4 = nn.BatchNorm2d(base_channels*8)
+        self.batchN4 = nn.InstanceNorm2d(base_channels*8, affine=True)
         self.LeakyReLU4 = nn.LeakyReLU(0.2, inplace=True)
         
         self.conv5 = nn.Conv2d(in_channels=base_channels*8, out_channels=1, kernel_size=4, bias=False)
-        self.sigmoid = nn.Sigmoid()
+#         self.sigmoid = nn.Sigmoid()
+        
+    def forward(self, x):
+        x = self.LeakyReLU1(self.batchN1(self.conv1(x)))
+        x = self.LeakyReLU2(self.batchN2(self.conv2(x)))
+        x = self.LeakyReLU3(self.batchN3(self.conv3(x)))
+        x = self.LeakyReLU4(self.batchN4(self.conv4(x)))
+        x = self.conv5(x)
+        return x
+
+class Generator(nn.Module):
+    def __init__(self):
+        super(Generator, self).__init__()
+        self.ConvT1 = nn.ConvTranspose2d(in_channels=100, out_channels=base_channels*8, kernel_size=4, bias=False) # 这里的in_channels是和初始的随机数有关
+        self.batchN1 = nn.BatchNorm2d(base_channels*8)
+        self.relu1 = nn.ReLU()
+        
+        self.ConvT2 = nn.ConvTranspose2d(in_channels=base_channels*8, out_channels=base_channels*4, kernel_size=4, stride=2, padding=1, bias=False) # 这里的in_channels是和初始的随机数有关
+        self.batchN2 = nn.BatchNorm2d(base_channels*4)
+        self.relu2 = nn.ReLU()        
+        
+        self.ConvT3= nn.ConvTranspose2d(in_channels=base_channels*4, out_channels=base_channels*2, kernel_size=4, stride=2, padding=1, bias=False) # 这里的in_channels是和初始的随机数有关
+        self.batchN3 = nn.BatchNorm2d(base_channels*2)
+        self.relu3 = nn.ReLU()
+
+        self.ConvT4 = nn.ConvTranspose2d(in_channels=base_channels*2, out_channels=base_channels, kernel_size=4, stride=2, padding=1, bias=False) # 这里的in_channels是和初始的随机数有关
+        self.batchN4 = nn.BatchNorm2d(base_channels)
+        self.relu4 = nn.ReLU()
+        
+        self.ConvT5 = nn.ConvTranspose2d(in_channels=base_channels, out_channels=3, kernel_size=4, stride=2, padding=1, bias=False)
+        self.tanh = nn.Tanh() # 激活函数
+        
+    def forward(self, x):
+        x = self.relu1(self.batchN1(self.ConvT1(x)))
+        x = self.relu2(self.batchN2(self.ConvT2(x)))
+        x = self.relu3(self.batchN3(self.ConvT3(x)))
+        x = self.relu4(self.batchN4(self.ConvT4(x)))
+        x = self.ConvT5(x)
+        x = self.tanh(x)
+        return x
+
+# 定义辅助函数
+def denorm(x):
+    out = (x + 1) / 2
+    return out.clamp(0, 1)
+
+if __name__ == "__main__":
+    # 将日志保存到文件
+    logging.basicConfig(filename='logger.log',level=logging.INFO)
+    # ----------
+    # 加载数据集
+    # ----------
+    trans = transforms.Compose([
+        transforms.Resize(img_size),
+        transforms.ToTensor(),
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+    ])
+    dataset = datasets.ImageFolder(img_folder, transform=trans) # 数据路径
+    dataloader = torch.utils.data.DataLoader(dataset,
+                                        batch_size=64, # 批量大小
+                                        shuffle=True, # 乱序
+                                        num_workers=6 # 多进程
+                                        )
+    # --------
+# 定义网络
+# --------
+class Discriminator(nn.Module):
+    def __init__(self):
+        super(Discriminator, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=base_channels, kernel_size=4, stride=2, padding=1, bias=False)
+        self.batchN1 = nn.InstanceNorm2d(base_channels, affine=True)
+        self.LeakyReLU1 = nn.LeakyReLU(0.2, inplace=True)
+        
+        self.conv2 = nn.Conv2d(in_channels=base_channels, out_channels=base_channels*2, kernel_size=4, stride=2, padding=1, bias=False)
+        self.batchN2 = nn.InstanceNorm2d(base_channels*2, affine=True)
+        self.LeakyReLU2 = nn.LeakyReLU(0.2, inplace=True)       
+
+        self.conv3 = nn.Conv2d(in_channels=base_channels*2, out_channels=base_channels*4, kernel_size=4, stride=2, padding=1, bias=False)
+        self.batchN3 = nn.InstanceNorm2d(base_channels*4, affine=True)
+        self.LeakyReLU3 = nn.LeakyReLU(0.2, inplace=True)
+        
+        self.conv4 = nn.Conv2d(in_channels=base_channels*4, out_channels=base_channels*8, kernel_size=4, stride=2, padding=1, bias=False)
+        self.batchN4 = nn.InstanceNorm2d(base_channels*8, affine=True)
+        self.LeakyReLU4 = nn.LeakyReLU(0.2, inplace=True)
+        
+        self.conv5 = nn.Conv2d(in_channels=base_channels*8, out_channels=1, kernel_size=4, bias=False)
+#         self.sigmoid = nn.Sigmoid()
         
     def forward(self, x):
         x = self.LeakyReLU1(self.batchN1(self.conv1(x)))
@@ -183,6 +269,7 @@ if __name__ == "__main__":
             pred_hat = D(x_hat)
             gradient = torch.autograd.grad(outputs=pred_hat, inputs=x_hat, grad_outputs=torch.ones(pred_hat.size()).to(device), create_graph=True, retain_graph=True) # 计算梯度
             gradient_penalty = penalty_lambda * ((gradient[0].view(gradient[0].size()[0], -1).norm(p=2,dim=1)-1)**2).mean()
+            Wasserstein_D = d_loss_real - d_loss_fake
             
             # 三个loss相加, 反向传播进行优化
             d_loss = d_loss_real + d_loss_fake + gradient_penalty
@@ -208,7 +295,7 @@ if __name__ == "__main__":
         # ----------
         # 打印结果
         # ---------
-        if (epoch+1) % 50 == 0:
+        if (epoch+1) % 10 == 0:
             t = datetime.now() #获取现在的时间
             # print('Time {}, Epoch [{}/{}], Step [{}/{}], d_loss_real:{:.4f} + d_loss_fake:{:.4f} + gradient_penalty:{:.4f} = d_loss: {:.4f}, g_loss: {:.4f}, d_lr={:.6f},g_lr={:.6f}'
             #     .format(t, epoch, num_epochs, i+1, total_step, d_loss_real.item(), d_loss_fake.item(), gradient_penalty.item(), d_loss.item(), g_loss.item(),
@@ -220,12 +307,14 @@ if __name__ == "__main__":
             writer.add_scalar('loss/d_loss_fake', d_loss_fake.item(), epoch)
             writer.add_scalar('loss/d_loss', d_loss.item(), epoch)
             writer.add_scalar('loss/g_loss', g_loss.item(), epoch)
+            writer.add_scalar('loss/gradient_penalty', gradient_penalty.item(), epoch)
+            writer.add_scalar('loss/Wasserstein_D', Wasserstein_D.item(), epoch)
             
         # -----------
         # 结果的保存
         # ----------
         # 每一个epoch显示图片(这里切换为eval模式)
-        if (epoch + 1) % 300 == 0:
+        if (epoch + 1) % 50 == 0:
             G.eval()
             test_images = G(test_noise)
 #             writer.add_image('fake_images-norm-{}.png'.format(epoch+1), test_images, 1, dataformats='HWC')
