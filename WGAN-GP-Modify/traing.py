@@ -191,7 +191,7 @@ if __name__ == "__main__":
                 pred_hat = D(x_hat)
                 gradient = torch.autograd.grad(outputs=pred_hat, inputs=x_hat, grad_outputs=torch.ones(pred_hat.size()).to(device), create_graph=True, retain_graph=True) # 计算梯度
                 gradient_penalty = penalty_lambda * ((gradient[0].view(gradient[0].size()[0], -1).norm(p=2,dim=1)-1)**2).mean()
-                Wasserstein_D = d_loss_real - d_loss_fake
+                Wasserstein_D = d_loss_real + d_loss_fake
 
                 # 三个loss相加, 反向传播进行优化
                 d_loss = d_loss_real + d_loss_fake + gradient_penalty
@@ -216,12 +216,12 @@ if __name__ == "__main__":
 #                 logging.info('Time {}, Epoch [{}/{}], Step [{}/{}], d_loss_real:{:.4f} + d_loss_fake:{:.4f} + gradient_penalty:{:.4f} = d_loss: {:.4f}, g_loss: {:.4f}, d_lr={:.6f},g_lr={:.6f}'
 #                     .format(t, epoch, num_epochs, i+1, total_step, d_loss_real.item(), d_loss_fake.item(), gradient_penalty.item(), d_loss.item(), g_loss.item(),
 #                             d_optimizer.param_groups[0]['lr'], g_optimizer.param_groups[0]['lr']))
-                writer.add_scalar('lossd/d_loss_real', d_loss_real.item(), epoch)
-                writer.add_scalar('lossd/d_loss_fake', d_loss_fake.item(), epoch)
-                writer.add_scalar('lossd/d_loss', d_loss.item(), epoch)
-                writer.add_scalar('lossg/g_loss', g_loss.item(), epoch)
-                writer.add_scalar('loss/gradient_penalty', gradient_penalty.item(), epoch)
-                writer.add_scalar('loss/Wasserstein_D', Wasserstein_D.item(), epoch)
+                writer.add_scalar('lossd/d_loss_real', d_loss_real.item(), i)
+                writer.add_scalar('lossd/d_loss_fake', d_loss_fake.item(), i)
+                writer.add_scalar('lossd/d_loss', d_loss.item(), i)
+                writer.add_scalar('lossg/g_loss', g_loss.item(), i)
+                writer.add_scalar('loss/gradient_penalty', gradient_penalty.item(), i)
+                writer.add_scalar('loss/Wasserstein_D', Wasserstein_D.item(), i)
         subbar.close()
         d_exp_lr_scheduler.step()
         g_exp_lr_scheduler.step()    
@@ -234,12 +234,6 @@ if __name__ == "__main__":
             logging.info('Time {}, Epoch [{}/{}], Step [{}/{}], d_loss_real:{:.4f} + d_loss_fake:{:.4f} + gradient_penalty:{:.4f} = d_loss: {:.4f}, g_loss: {:.4f}, d_lr={:.6f},g_lr={:.6f}'
                 .format(t, epoch, num_epochs, i+1, total_step, d_loss_real.item(), d_loss_fake.item(), gradient_penalty.item(), d_loss.item(), g_loss.item(),
                         d_optimizer.param_groups[0]['lr'], g_optimizer.param_groups[0]['lr']))
-#             writer.add_scalar('lossd/d_loss_real', d_loss_real.item(), epoch)
-#             writer.add_scalar('lossd/d_loss_fake', d_loss_fake.item(), epoch)
-#             writer.add_scalar('lossd/d_loss', d_loss.item(), epoch)
-#             writer.add_scalar('lossg/g_loss', g_loss.item(), epoch)
-#             writer.add_scalar('loss/gradient_penalty', gradient_penalty.item(), epoch)
-#             writer.add_scalar('loss/Wasserstein_D', Wasserstein_D.item(), epoch)
             
         # -----------
         # 结果的保存
