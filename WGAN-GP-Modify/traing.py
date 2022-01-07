@@ -106,7 +106,7 @@ if __name__ == "__main__":
     ])
     dataset = datasets.ImageFolder(img_folder, transform=trans) # 数据路径
     dataloader = torch.utils.data.DataLoader(dataset,
-                                        batch_size=128, # 批量大小
+                                        batch_size=450, # 批量大小
                                         shuffle=True, # 乱序
                                         num_workers=6 # 多进程
                                         )
@@ -200,18 +200,6 @@ if __name__ == "__main__":
                 d_loss.backward()
                 d_optimizer.step()   
             exsubbar.close()
-#             # ------------------------------------
-#             # 开始训练generator(多训练几轮D, 在训练G)
-#             # ------------------------------------
-#             if (i + 1) % 2 == 0:
-#                 normal_noise = Variable(torch.randn(batch_size, 100, img_rate, img_rate)).normal_(0, 1).to(device)
-#                 fake_images = G(normal_noise) # 生成假的图片
-#                 outputs = D(fake_images) # 放入辨别器
-#                 g_loss = -torch.mean(outputs) # 希望生成器生成的图片判别器可以判别为真
-#                 d_optimizer.zero_grad()
-#                 g_optimizer.zero_grad()
-#                 g_loss.backward()
-#                 g_optimizer.step()  
             normal_noise = Variable(torch.randn(batch_size, 100, img_rate, img_rate)).normal_(0, 1).to(device)
             fake_images = G(normal_noise) # 生成假的图片
             outputs = D(fake_images) # 放入辨别器
@@ -220,32 +208,44 @@ if __name__ == "__main__":
             g_optimizer.zero_grad()
             g_loss.backward()
             g_optimizer.step()
+            # ----------
+            # 打印结果
+            # ---------
+            if (i+1) % 1 == 0:
+#                 t = datetime.now() #获取现在的时间
+#                 logging.info('Time {}, Epoch [{}/{}], Step [{}/{}], d_loss_real:{:.4f} + d_loss_fake:{:.4f} + gradient_penalty:{:.4f} = d_loss: {:.4f}, g_loss: {:.4f}, d_lr={:.6f},g_lr={:.6f}'
+#                     .format(t, epoch, num_epochs, i+1, total_step, d_loss_real.item(), d_loss_fake.item(), gradient_penalty.item(), d_loss.item(), g_loss.item(),
+#                             d_optimizer.param_groups[0]['lr'], g_optimizer.param_groups[0]['lr']))
+                writer.add_scalar('lossd/d_loss_real', d_loss_real.item(), epoch)
+                writer.add_scalar('lossd/d_loss_fake', d_loss_fake.item(), epoch)
+                writer.add_scalar('lossd/d_loss', d_loss.item(), epoch)
+                writer.add_scalar('lossg/g_loss', g_loss.item(), epoch)
+                writer.add_scalar('loss/gradient_penalty', gradient_penalty.item(), epoch)
+                writer.add_scalar('loss/Wasserstein_D', Wasserstein_D.item(), epoch)
         subbar.close()
         d_exp_lr_scheduler.step()
-        g_exp_lr_scheduler.step()      
+        g_exp_lr_scheduler.step()    
+        
         # ----------
         # 打印结果
         # ---------
-        if (epoch+1) % 10 == 0:
+        if (epoch+1) % 1 == 0:
             t = datetime.now() #获取现在的时间
-            # print('Time {}, Epoch [{}/{}], Step [{}/{}], d_loss_real:{:.4f} + d_loss_fake:{:.4f} + gradient_penalty:{:.4f} = d_loss: {:.4f}, g_loss: {:.4f}, d_lr={:.6f},g_lr={:.6f}'
-            #     .format(t, epoch, num_epochs, i+1, total_step, d_loss_real.item(), d_loss_fake.item(), gradient_penalty.item(), d_loss.item(), g_loss.item(),
-            #             d_optimizer.param_groups[0]['lr'], g_optimizer.param_groups[0]['lr']))
             logging.info('Time {}, Epoch [{}/{}], Step [{}/{}], d_loss_real:{:.4f} + d_loss_fake:{:.4f} + gradient_penalty:{:.4f} = d_loss: {:.4f}, g_loss: {:.4f}, d_lr={:.6f},g_lr={:.6f}'
                 .format(t, epoch, num_epochs, i+1, total_step, d_loss_real.item(), d_loss_fake.item(), gradient_penalty.item(), d_loss.item(), g_loss.item(),
                         d_optimizer.param_groups[0]['lr'], g_optimizer.param_groups[0]['lr']))
-            writer.add_scalar('lossd/d_loss_real', d_loss_real.item(), epoch)
-            writer.add_scalar('lossd/d_loss_fake', d_loss_fake.item(), epoch)
-            writer.add_scalar('lossd/d_loss', d_loss.item(), epoch)
-            writer.add_scalar('lossg/g_loss', g_loss.item(), epoch)
-            writer.add_scalar('loss/gradient_penalty', gradient_penalty.item(), epoch)
-            writer.add_scalar('loss/Wasserstein_D', Wasserstein_D.item(), epoch)
+#             writer.add_scalar('lossd/d_loss_real', d_loss_real.item(), epoch)
+#             writer.add_scalar('lossd/d_loss_fake', d_loss_fake.item(), epoch)
+#             writer.add_scalar('lossd/d_loss', d_loss.item(), epoch)
+#             writer.add_scalar('lossg/g_loss', g_loss.item(), epoch)
+#             writer.add_scalar('loss/gradient_penalty', gradient_penalty.item(), epoch)
+#             writer.add_scalar('loss/Wasserstein_D', Wasserstein_D.item(), epoch)
             
         # -----------
         # 结果的保存
         # ----------
         # 每一个epoch显示图片(这里切换为eval模式)
-        if (epoch + 1) % 50 == 0:
+        if (epoch + 1) % 1 == 0:
             G.eval()
             test_images = G(test_noise)
 #             writer.add_image('fake_images-norm-{}.png'.format(epoch+1), test_images, 1, dataformats='HWC')
