@@ -30,6 +30,7 @@ D_cicle = 5
 class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
+        #  96
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=base_channels, kernel_size=4, stride=2, padding=1, bias=False)
         self.batchN1 = nn.InstanceNorm2d(base_channels, affine=True)
         self.LeakyReLU1 = nn.LeakyReLU(0.2, inplace=True)
