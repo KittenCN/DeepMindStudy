@@ -8,6 +8,7 @@ from torch.autograd import Variable
 from torch.utils.data import Dataset
 from torchvision import transforms, datasets, models
 from model import resnet34
+import matplotlib.pyplot as plt
 # from tqdm import trange
 
 # 配置参数
@@ -51,6 +52,10 @@ print(net)
 cirterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
+index = 0
+x_data = []
+y_data = []
+
 # 开始训练
 #net.train()
 for epoch in range(epochs):
@@ -58,6 +63,8 @@ for epoch in range(epochs):
     train_correct = 0
     train_total = 0
     for i, data in enumerate(train_loader):
+        index += 1
+        x_data.append(index)
         inputs, train_labels = data
         if use_gpu:
             inputs, labels = Variable(inputs.cuda()), Variable(train_labels.cuda())
@@ -71,6 +78,7 @@ for epoch in range(epochs):
         # pdb.set_trace()
         train_correct += (train_predicted == labels.data).sum()
         loss = cirterion(outputs, labels)
+        y_data.append(loss)
         loss.backward()
         optimizer.step()
 
@@ -101,3 +109,6 @@ for epoch in range(epochs):
         correct += (predicted == labels.data).sum()
 
     print('test  %d epoch loss: %.3f  acc: %.3f ' % (epoch, test_loss / test_total, 100 * correct / test_total))
+
+    plt.plot(x_data, y_data, 'r')
+    plt.show
