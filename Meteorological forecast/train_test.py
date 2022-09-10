@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from tqdm import tqdm
 
 txt_list = glob.glob("data\Meteorological forecast\data\TXT\*.txt")
 # print(txt_list)
@@ -11,27 +12,30 @@ list_pre = []
 list_tem = []
 list_rhu = []
 list_prs = []
+subbar = tqdm(total=len(txt_list))
 for txtt in txt_list:
+    subbar.update(1)
     # print(txtt)
     with open(txtt, 'r') as f:
         data = f.readlines()
-        for line in data:
+        for line in data:           
             sp = line.split()
-            if sp[0] == "58362":
+            # if sp[0] == "58362":
                 # print(txtt)
                 # print(sp)
-                list = [58362, int(sp[4]), int(sp[5]), int(sp[6])]
-                if txtt[59:62] == 'PRE':
-                    if sp[9] == '0':
-                        list_pre.append(0)
-                    else:
-                        list_pre.append(1)
-                if txtt[59:62] == 'TEM':
-                    list_tem.append(int(sp[7]))
-                if txtt[59:62] == 'RHU':
-                    list_rhu.append(int(sp[7]))
-                if txtt[59:62] == 'PRS':
-                    list_prs.append(int(sp[7]))
+            list = [sp[0], int(sp[4]), int(sp[5]), int(sp[6])]
+            if txtt[59:62] == 'PRE':
+                if sp[9] == '0':
+                    list_pre.append(0)
+                else:
+                    list_pre.append(1)
+            if txtt[59:62] == 'TEM':
+                list_tem.append(int(sp[7]))
+            if txtt[59:62] == 'RHU':
+                list_rhu.append(int(sp[7]))
+            if txtt[59:62] == 'PRS':
+                list_prs.append(int(sp[7]))
+subbar.close()
 # print(list_tem)
 # print(list_rhu)
 # print(list_prs)
@@ -97,7 +101,7 @@ rain_test = torch.from_numpy(np.array(rainfall_test)).float()
 train_dataset = torch.utils.data.TensorDataset(pre_train, rain_train)
 test_dataset = torch.utils.data.TensorDataset(pre_test, rain_test)
 
-epochs = 1000
+epochs = 100
 batch_size = 16
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
@@ -134,8 +138,8 @@ if __name__ == "__main__":
             loss.backward()
             optimizer.step()
 
-        if epoch % 10 == 0:
+        if (epoch + 1) % 10 == 0:
             for inputs, targets in test_loader:
                 outputs = net(inputs)
                 loss = loss_function(outputs, targets)
-                print('epoch:', epoch, 'loss:', loss.item())
+                print('epoch:', epoch + 1, 'loss:', loss.item())

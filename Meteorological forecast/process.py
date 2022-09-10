@@ -3,14 +3,14 @@ import re
 from tqdm import tqdm
 import dbhelper as db
 
-txt_path = r'D:\workstation\GitHub\DeepMindStudy\data\Meteorological forecast\data\TXT'
-db_path = r'D:\workstation\GitHub\DeepMindStudy\data\Meteorological forecast\data\DB\database.db'
+txt_path = r'D:/workstation/GitHub/DeepMindStudy/data/Meteorological forecast/data/TXT'
+db_path = r'D:/workstation/GitHub/DeepMindStudy/data/Meteorological forecast/data/DB/database.db'
 category_list = ['EVP', 'GST', 'PRE', 'PRS', 'RHU', 'SSD', 'TEM', 'WIN']
 files = os.listdir(txt_path)
 datas = [[] for i in range(8)]
 
 EVP = {'locationID':0, 'longitude':0, 'latitude':0, 'altitude':0, 'year':0, 'month':0, 'day':0, 'highest_evaporation':0, 'lowest_evaporation':0}
-GST ={'locationID':0, 'longituda':0, 'latitude':0, 'altitude':0, 'year':0, 'month':0, 'day':0, 'avg_temp':0, 'hightlest_temp':0, 'lowest_temp':0}
+GST = {'locationID':0, 'longituda':0, 'latitude':0, 'altitude':0, 'year':0, 'month':0, 'day':0, 'avg_temp':0, 'hightlest_temp':0, 'lowest_temp':0}
 PRE = {'locationID':0, 'longitude':0, 'latitude':0, 'altitude':0, 'year':0, 'month':0, 'day':0, 'night_rainfall':0, 'day_rainfall':0, 'allday_rainfall':0}
 PRS = {'locationID':0, 'longitude':0, 'latitude':0, 'altitude':0, 'year':0, 'month':0, 'day':0, 'avg_pressure':0, 'hightlest_pressure':0, 'lowest_pressure':0}
 RHU = {'locationID':0, 'longitude':0, 'latitude':0, 'altitude':0, 'year':0, 'month':0, 'day':0, 'avg_humidity':0, 'lowest_humidity':0}
@@ -53,7 +53,7 @@ def TransNewData():
 
 def CalulateMereForeData():
     _db = db.Connect(db_path)
-    strSQL = "select a.locationID, a.altitude, a.year, a.month, a.day, a.avg_pressure, b.avg_humidity, c.avg_temp, d.allday_rainfall from prs a inner join rhu b inner join tem c inner join pre d on a.locationID = b.locationID and a.locationID = c.locationID and a.locationID = d.locationID and a.year = b.year and a.year = c.year and a.year = d.year and a.month = b.month and a.month = c.month and a.month = d.month and a.day = b.day and a.day = c.day and a.day = d.day where a.avg_pressure < 30000 and b.avg_humidity < 30000 and c.avg_temp < 3000 and d.allday_rainfall < 3000 and a.altitude < 90000 and a.locationID=58362 order by a.locationID, a.year, a.month, a.day"
+    strSQL = "select a.locationID, a.altitude, a.year, a.month, a.day, a.avg_pressure, b.avg_humidity, c.avg_temp, d.allday_rainfall from prs a inner join rhu b inner join tem c inner join pre d on a.locationID = b.locationID and a.locationID = c.locationID and a.locationID = d.locationID and a.year = b.year and a.year = c.year and a.year = d.year and a.month = b.month and a.month = c.month and a.month = d.month and a.day = b.day and a.day = c.day and a.day = d.day where a.avg_pressure < 30000 and b.avg_humidity < 30000 and c.avg_temp < 30000 and d.allday_rainfall < 30000 and a.altitude < 90000 and a.locationID=58362 order by a.locationID, a.year, a.month, a.day"
     # strSQL += " limit 1000"
     _datas = _db.query(strSQL, True)
     data = []

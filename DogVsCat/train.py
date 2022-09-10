@@ -31,10 +31,10 @@ data_transform = transforms.Compose([  # 将transforms作为一个整体来使�
 
 # 数据的批处理，尺寸大小为batch_size,
 # 在训练集中，shuffle 必须设置为True, 表示次序是随机的
-train_dataset = datasets.ImageFolder(root='DogVsCat/data/cats_and_dogs_small/train', transform=data_transform)
+train_dataset = datasets.ImageFolder(root='data/DogVsCat/data/cats_and_dogs_small/train', transform=data_transform)
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
-test_dataset = datasets.ImageFolder(root='DogVsCat/data/cats_and_dogs_small/test', transform=data_transform)
+test_dataset = datasets.ImageFolder(root='data/DogVsCat/data/cats_and_dogs_small/test', transform=data_transform)
 test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
 
 
@@ -42,21 +42,22 @@ test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, s
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(3, 6, 5)  # 224*224*3 -> 224*224*6
-        self.maxpool = nn.MaxPool2d(2, 2)  # 224*224*6 -> 112*112*6
-        self.conv2 = nn.Conv2d(6, 16, 5)  # 112*112*6 -> 112*112*16
-        self.fc1 = nn.Linear(16 * 53 * 53, 1024)  # 16*53*53 -> 1024
-        self.fc2 = nn.Linear(1024, 512)  # 1024 -> 512
-        self.fc3 = nn.Linear(512, 2)  # 512 -> 2
+        # o = (h + 2p - k) / s + 1
+        # o = (h - k) / s + 1
+        self.conv1 = nn.Conv2d(3, 6, 5)  
+        self.maxpool = nn.MaxPool2d(2, 2) 
+        self.conv2 = nn.Conv2d(6, 16, 5)  
+        self.fc1 = nn.Linear(16 * 53 * 53, 1024)  
+        self.fc2 = nn.Linear(1024, 512)  
+        self.fc3 = nn.Linear(512, 2)  
 
     def forward(self, x):
-        x = self.maxpool(F.relu(self.conv1(x)))
-        x = self.maxpool(F.relu(self.conv2(x)))
-        x = x.view(-1, 16 * 53 * 53)  # 112*112*16 -> 16*53*53
+        x = self.maxpool(F.relu(self.conv1(x))) #224x224x3 -> 220*220*6 -> 110*110*6
+        x = self.maxpool(F.relu(self.conv2(x))) #110*110*6 -> 106*106*16 -> 53*53*16
+        x = x.view(-1, 16 * 53 * 53) #将x变成一个行向量，其中每一行是一个样本，每一行的大小是16*53*53
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
-
         return x
 
 # 加载resnet18 模型，

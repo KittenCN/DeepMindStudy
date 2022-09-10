@@ -18,10 +18,65 @@ def show(image):
     plt.imshow(pixels, cmap='gray')
     plt.show()
 
-train_dataset = datasets.MNIST(root='Mnist\data', train=True, transform=transforms.ToTensor(), download=True)
-test_dataset = datasets.MNIST(root='Mnist\data', train=False, transform=transforms.ToTensor())
+train_dataset = datasets.MNIST(root='data', train=True, transform=transforms.ToTensor(), download=True)
+test_dataset = datasets.MNIST(root='data', train=False, transform=transforms.ToTensor())
 train_loader = DataLoader(dataset = train_dataset, batch_size = 100, shuffle = True)
 test_loader = DataLoader(dataset = test_dataset, batch_size= 100, shuffle = True)
+
+class ResNet(nn.Module):
+    def __init__(self):
+        super(ResNet, self).__init__()
+        self.conv1 = nn.Conv2d(3, 6, 5)  # 224*224*3 -> 224*224*6
+        self.maxpool = nn.MaxPool2d(2, 2)  # 224*224*6 -> 112*112*6
+        self.conv2 = nn.Conv2d(6, 16, 5)  # 112*112*6 -> 112*112*16
+        self.fc1 = nn.Linear(16 * 53 * 53, 1024)  # 16*53*53 -> 1024
+        self.fc2 = nn.Linear(1024, 512)  # 1024 -> 512
+        self.fc3 = nn.Linear(512, 2)  # 512 -> 2
+
+    def forward(self, x):
+        x = self.maxpool(F.relu(self.conv1(x)))
+        x = self.maxpool(F.relu(self.conv2(x)))
+        x = x.view(-1, 16 * 53 * 53)  # 112*112*16 -> 16*53*53
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+
+        return x
+
+class LeNet5(nn.Module):
+    def __init__(self):
+        super(LeNet5, self).__init__()
+
+        # 卷积层
+        # i --> input channels
+        # 6 --> output channels
+        # 5 --> kernel size
+        self.conv1 = nn.Conv2d(1, 6, 5)
+        self.conv2 = nn.Conv2d(6, 16, 5)
+
+        # 全连接层
+        # 16 * 4 * 4 --> input vector dimensions
+        # 120 --> output vector dimensions
+        self.fc1 = nn.Linear(16 * 4 * 4, 120)
+        self.fc2 = nn.Linear(120, 84)
+        self.fc3 = nn.Linear(84, 10)
+
+    def forward(self, x):
+        # 卷积 --> ReLu --> 池化
+        x = F.max_pool2d(F.relu(self.conv1(x)), (2, 2))
+        x = F.max_pool2d(F.relu(self.conv2(x)), (2, 2))
+
+        # reshape, '-1'表示自适应
+        # x = (n * 16 * 4 * 4) --> n : input channels
+        # x.size()[0] == n --> input channels
+        x = x.view(x.size()[0], -1)
+
+        # 全连接层
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+
+        return x
 
 class mnist_net(nn.Module):
     def __init__(self) -> None:
@@ -41,7 +96,7 @@ class mnist_net(nn.Module):
         # self.dense = nn.Sequential(nn.Linear(128 * 14 * 14, 1024),
         #                             nn.ReLU(),
         #                             nn.Dropout(p=0.5),
-        #                             nn.Linear(1024, 10))
+        #                             nn.Linear(1024, 10))     
     
     def forward(self, x):
         x = self.conv1(x)
@@ -60,7 +115,8 @@ class mnist_net(nn.Module):
         # x = self.dense(x)
         return x
 
-net = mnist_net().to(device)
+# net = mnist_net().to(device)
+net = ResNet().to(device)
 print(net)
 loss = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(net.parameters(), lr=0.001)

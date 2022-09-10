@@ -18,12 +18,12 @@ import cv2
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(3, 6, 5)  # 224*224*3 -> 220*220*6
-        self.maxpool = nn.MaxPool2d(2, 2)  # 220*220*6 -> 110*110*6
-        self.conv2 = nn.Conv2d(6, 16, 5)  # 110*110*6 -> 106*106*16
-        self.fc1 = nn.Linear(16 * 53 * 53, 1024)  # 16*53*53 -> 1024
-        self.fc2 = nn.Linear(1024, 512)  # 1024 -> 512
-        self.fc3 = nn.Linear(512, 2)  # 512 -> 2
+        self.conv1 = nn.Conv2d(3, 6, 5)  # 224*224*3 -> 220*220*6  卷积层
+        self.maxpool = nn.MaxPool2d(2, 2)  # 220*220*6 -> 110*110*6   池化层
+        self.conv2 = nn.Conv2d(6, 16, 5)  # 110*110*6 -> 106*106*16   卷积层
+        self.fc1 = nn.Linear(16 * 53 * 53, 1024)  # 16*53*53 -> 1024  全连接层
+        self.fc2 = nn.Linear(1024, 512)  # 1024 -> 512   全连接层
+        self.fc3 = nn.Linear(512, 2)  # 512 -> 2   全连接层
 
     def forward(self, x):
         x = self.maxpool(F.relu(self.conv1(x)))
