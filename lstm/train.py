@@ -19,6 +19,7 @@ num_epochs = n_iters / (len(train_data) / batch_size)
 num_epochs = int(num_epochs)
 train_loader = DataLoader(dataset=train_data, batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(dataset=test_data, batch_size=batch_size, shuffle=False)
+pklfile = r'./lstm/model.pkl'
 
 class LSTMModel(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, output_size, batch_size):
@@ -59,3 +60,4 @@ for epoch in range(num_epochs):
 
         if (i+1) % 100 == 0:
             print('Epoch: {}/{}, Step: {}/{}, Loss: {:.4f}'.format(epoch+1, num_epochs, i+1, len(train_data)//batch_size, loss.item()))
+    torch.save(model, pklfile)

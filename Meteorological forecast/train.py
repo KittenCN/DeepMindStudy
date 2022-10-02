@@ -8,18 +8,20 @@ import numpy as np
 import math
 import os
 from tqdm import tqdm
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 # from torch.utils.tensorboard import SummaryWriter
 # import torchvision
 from apex import amp
 from prefetch_generator import BackgroundGenerator
 
-db_path = r"/root/MeteorologicalForecast/data/DB/database.db"
+db_path = r"D:\\workstation\\GitHub\DeepMindStudy\data\\Meteorological forecast\\data\\DB\\database.db"
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print("Use " + str(device))
 ori_in_date = []
 ori_out_data = [] 
 _db = db.Connect(db_path)
-pklfile = r"/root/MeteorologicalForecast/model/model.pkl"
+pklfile = r"./model.pkl"
 # log_writer = SummaryWriter(r"/root/tf-logs/")
 
 class DataLoaderX(DataLoader):
@@ -30,17 +32,15 @@ class net(nn.Module):
     def __init__(self) -> None:
         super(net, self).__init__()
         self.fc1 = nn.Linear(5, 128)
-        self.fc2 = nn.Linear(128, 512)
-        self.fc3 = nn.Linear(512, 256)
-        self.fc4 = nn.Linear(256, 64)
-        self.fc5 = nn.Linear(64, 1)
+        self.fc2 = nn.Linear(128, 256)
+        self.fc3 = nn.Linear(256, 64)
+        self.fc4 = nn.Linear(64, 1)
     
     def forward(self, x):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
-        x = F.relu(self.fc4(x))
-        x = self.fc5(x)
+        x = self.fc4(x)
         return x
 
 def RP(t, h):
@@ -130,7 +130,7 @@ if __name__ == "__main__":
     subbar.close()
     # del ori_in_date[-1]
     # del ori_out_data[0]
-    epochs = 3000
+    epochs = 1000
     lr = 0.01
     if os.path.exists(pklfile):
 #         model = torch.load(pklfile).to(device)
@@ -149,8 +149,10 @@ if __name__ == "__main__":
     model, optimizer = amp.initialize(model, optimizer, opt_level="O0")
     dataset = TensorDataset(in_data, out_data)
     # data_loader = DataLoader(dataset, batch_size=1024, shuffle=True, num_workers=16, pin_memory=True)
-    data_loader = DataLoaderX(dataset, batch_size=1024, shuffle=True, num_workers=16, pin_memory=True)
-    bar = tqdm(total=10, leave=False)
+    data_loader = DataLoaderX(dataset, batch_size=1024, shuffle=True)
+    bar = tqdm(total=epochs, leave=False)
+    losslist = []
+    epochlist = []
     for epoch in range(epochs):
         bar.update(1)
         subbar = tqdm(total=len(data_loader), leave=False)
@@ -171,9 +173,13 @@ if __name__ == "__main__":
             optimizer.step()
         subbar.close()
         if (epoch + 1) % 10 == 0 and epoch != 0:
-            bar.close()
-            print('epoch:', epoch + 1, 'loss:', loss.item())
-            bar = tqdm(total=10, leave=False)
+            # print('epoch:', epoch + 1, 'loss:', loss.item())
+            losslist.append(loss.item())
+            epochlist.append(epoch + 1)
         if (epoch + 1) % 100 == 0 and epoch != 0:
             torch.save(model.state_dict(), pklfile)
+    bar.close()
+    print('epoch:', epoch + 1, 'loss:', loss.item())
+    plt.plot(epochlist, losslist)
+    plt.show()
     # log_writer.close()

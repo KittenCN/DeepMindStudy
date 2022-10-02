@@ -65,7 +65,7 @@ if __name__ == "__main__":
     # print('a:', model.linear.weight.item())
     # print('b:', model.linear.bias.item())
     print(list(model.parameters()))
-    torch.save(model, "linear regression\model\model.pkl")
+    torch.save(model.state_dict(), "linear regression\model\model.pkl")
     x_data = []
     for i in range(len(listloss)):
         x_data.append(i)

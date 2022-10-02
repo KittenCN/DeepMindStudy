@@ -20,8 +20,56 @@ def show(image):
 
 train_dataset = datasets.MNIST(root='data', train=True, transform=transforms.ToTensor(), download=True)
 test_dataset = datasets.MNIST(root='data', train=False, transform=transforms.ToTensor())
-train_loader = DataLoader(dataset = train_dataset, batch_size = 100, shuffle = True)
-test_loader = DataLoader(dataset = test_dataset, batch_size= 100, shuffle = True)
+train_loader = DataLoader(dataset = train_dataset, batch_size = 512, shuffle = True)
+test_loader = DataLoader(dataset = test_dataset, batch_size= 512, shuffle = True)
+
+class alexnet(nn.Module):  
+    def __init__(self):
+        super().__init__()
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(in_channels=1, out_channels=32, kernel_size=7, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2)
+        )
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(32, 256, 5, 1, 2),
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2)
+        )
+        self.conv3 = nn.Sequential(
+            nn.Conv2d(256, 384, 3, 1, 1),
+            nn.ReLU()
+        )
+        self.conv4 = nn.Sequential(
+            nn.Conv2d(384, 384, 3, 1, 1),
+            nn.ReLU()
+        )
+        self.conv5 = nn.Sequential(
+            nn.Conv2d(384, 256, 3, 1, 1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2)
+        )
+
+        self.fc1 = nn.Linear(256 * 3 * 3, 4096)
+        self.fc2 = nn.Linear(4096, 4096)
+        self.fc3 = nn.Linear(4096, 10)
+
+    def forward(self, x):
+        out = self.conv1(x) # 28*28*1 -> 5*5*96 -> 2*2*96
+        out = self.conv2(out)
+        out = self.conv3(out)
+        out = self.conv4(out)
+        out = self.conv5(out)
+        out = out.view(out.size(0), -1)
+
+        out = F.relu(self.fc1(out))  # 256*6*6 -> 4096
+        out = F.dropout(out, 0.5)
+        out = F.relu(self.fc2(out))
+        out = F.dropout(out, 0.5)
+        out = self.fc3(out)
+        out = F.log_softmax(out, dim=1)
+
+        return out
 
 class ResNet(nn.Module):
     def __init__(self):
@@ -116,7 +164,7 @@ class mnist_net(nn.Module):
         return x
 
 # net = mnist_net().to(device)
-net = ResNet().to(device)
+net = alexnet().to(device)
 print(net)
 loss = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(net.parameters(), lr=0.001)
@@ -133,16 +181,16 @@ for epoch in range(epochs):
         optimizer.step()
         if i % 10 == 0:
             print(f'Epoch: {epoch}, Step: {i}, Loss: {loss_value.item()}')
-torch.save(net, "Mnist/model/model.pkl")
-print("------------------------------------------------------")
-correct = 0
-net = torch.load("Mnist/model/model.pkl").to(device)
-print(net)
-for data in test_loader:
-    images, labels = data
-    images = images.to(device)
-    labels = labels.to(device)
-    outputs = net(images)
-    _, predicted = torch.max(outputs.data, 1)
-    correct += (predicted == labels).sum().item()
-print(f'Accuracy: {correct / len(test_loader)}%')
+torch.save(net.state_dict(), "Mnist/model/model.pkl")
+# print("------------------------------------------------------")
+# correct = 0
+# net = torch.load("Mnist/model/model.pkl").to(device)
+# print(net)
+# for data in test_loader:
+#     images, labels = data
+#     images = images.to(device)
+#     labels = labels.to(device)
+#     outputs = net(images)
+#     _, predicted = torch.max(outputs.data, 1)
+#     correct += (predicted == labels).sum().item()
+# print(f'Accuracy: {correct / len(test_loader)}%')
