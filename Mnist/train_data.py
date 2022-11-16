@@ -7,6 +7,8 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 import numpy as np
+import PIL.Image as pil_image
+import matplotlib.pyplot as plt
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -182,7 +184,7 @@ for epoch in range(epochs):
         if i % 10 == 0:
             print(f'Epoch: {epoch}, Step: {i}, Loss: {loss_value.item()}')
 torch.save(net.state_dict(), "Mnist/model/model.pkl")
-# print("------------------------------------------------------")
+print("------------------------------------------------------")
 # correct = 0
 # net = torch.load("Mnist/model/model.pkl").to(device)
 # print(net)
@@ -194,3 +196,4 @@ torch.save(net.state_dict(), "Mnist/model/model.pkl")
 #     _, predicted = torch.max(outputs.data, 1)
 #     correct += (predicted == labels).sum().item()
 # print(f'Accuracy: {correct / len(test_loader)}%')
+# print(predicted)
