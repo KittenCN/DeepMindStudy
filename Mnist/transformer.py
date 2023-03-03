@@ -1,69 +1,99 @@
+import numpy as np
 import torch
-from torch import nn
-from torch.utils.data import DataLoader, random_split
-from torchvision.datasets import MNIST
-from torchvision.transforms import ToTensor
-from torchvision import datasets, transforms
+import torch.nn as nn
+import torch.optim as optim
+import torchvision.datasets as datasets
+import torchvision.transforms as transforms
+from torch.utils.data import DataLoader
 
-# Define the Transformer model
+# Define device
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Define hyperparameters
+batch_size = 2
+learning_rate = 0.001
+num_epochs = 10
+
+# Load MNIST dataset
+train_dataset = datasets.MNIST(root="data/", train=True, transform=transforms.ToTensor(), download=True)
+test_dataset = datasets.MNIST(root="data/", train=False, transform=transforms.ToTensor(), download=True)
+train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
+test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
+
+# Define model
 class TransformerModel(nn.Module):
     def __init__(self):
         super(TransformerModel, self).__init__()
-        self.encoder_layer = nn.TransformerEncoderLayer(d_model=28*28, nhead=8)
+        self.embed = nn.Embedding(28 * 28, 256) # 28*28 = 784 -> 256
+        self.encoder_layer = nn.TransformerEncoderLayer(d_model=256, nhead=8)
         self.transformer_encoder = nn.TransformerEncoder(self.encoder_layer, num_layers=6)
-        self.decoder_layer = nn.Linear(in_features=28*28, out_features=10)
+        self.decoder = nn.Linear(256, 10)
 
     def forward(self, x):
-        x = x.view(-1, 28*28).T # Transpose image tensor to use it as sequence data
+        x = x.view(-1, 28 * 28)
+        x = self.embed(x)
+        x = x.transpose(0, 1)
         x = self.transformer_encoder(x)
-        x = self.decoder_layer(x[-1])
+        x = x.mean(dim=0)
+        x = self.decoder(x)
         return x
 
-# Load the data
-# dataset = MNIST(root='data/', download=True, transform=ToTensor())
-# train_ds, val_ds = random_split(dataset, [50000, 10000]) # Split into training and validation sets
-# train_loader = DataLoader(train_ds, batch_size=128, shuffle=True)
-# val_loader = DataLoader(val_ds, batch_size=128)
+model = TransformerModel().to(device)
 
-train_dataset = datasets.MNIST(root='data', train=True, transform=transforms.ToTensor(), download=True)
-test_dataset = datasets.MNIST(root='data', train=False, transform=transforms.ToTensor())
-train_loader = DataLoader(dataset = train_dataset, batch_size = 128, shuffle = True)
-val_loader = DataLoader(dataset = test_dataset, batch_size= 128)
-
-# Initialize the model and optimizer
-model = TransformerModel()
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+# Define loss function and optimizer
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 # Train the model
-def train(model, dataloader, optimizer):
-    model.train() # Set model to training mode
-    training_loss = 0.0
-    for batch_idx, (data, target) in enumerate(dataloader):
+for epoch in range(num_epochs):
+    for batch_idx, (data, targets) in enumerate(train_loader):
+        data = data.type(torch.LongTensor)
+        targets = targets.type(torch.LongTensor)
+
+        data = data.to(device)
+        targets = targets.to(device)
+
+        # Forward
+        scores = model(data)
+        loss = criterion(scores, targets)
+
+        # Backward
         optimizer.zero_grad()
-        output = model(data)
-        loss = nn.functional.cross_entropy(output, target)
         loss.backward()
+
+        # Update weights
         optimizer.step()
-        training_loss += loss.item() * data.size(0)
-    training_loss /= len(dataloader.dataset)
-    return training_loss
 
-# Evaluate the model
-def evaluate(model, dataloader):
-    model.eval() # Set model to evaluation mode
-    validation_loss = 0.0
-    correct = 0
+        if batch_idx % 100 == 0:
+            print(f"Epoch [{epoch}/{num_epochs}] Batch [{batch_idx}/{len(train_loader)}] Loss: {loss.item():.4f}")
+
+# Test the model
+def check_accuracy(loader, model):
+    if loader.dataset.train:
+        print("Checking accuracy on training data")
+    else:
+        print("Checking accuracy on test data")
+
+    num_correct = 0
+    num_samples = 0
+    model.eval()
+
     with torch.no_grad():
-        for data, target in dataloader:
-            output = model(data)
-            validation_loss += nn.functional.cross_entropy(output, target).item() * data.size(0)
-            pred = output.argmax(dim=1, keepdim=True) # Get the index of the max log-probability
-            correct += pred.eq(target.view_as(pred)).sum().item()
-    validation_loss /= len(dataloader.dataset)
-    accuracy = correct / len(dataloader.dataset)
-    return validation_loss, accuracy
+        for data, targets in loader:
+            data = data.type(torch.LongTensor)
+            targets = targets.type(torch.LongTensor)
 
-for epoch in range(10):
-    train_loss = train(model, train_loader, optimizer)
-    val_loss, val_acc = evaluate(model, val_loader)
-    print(f"Epoch {epoch}: \t Training Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f}, Validation Accuracy: {val_acc:.4f}")
+            data = data.to(device)
+            targets = targets.to(device)
+
+            scores = model(data)
+            _, predictions = scores.max(1)
+            num_correct += (predictions == targets).sum()
+            num_samples += predictions.size(0)
+
+        print(f"Got {num_correct}/{num_samples} with accuracy {float(num_correct)/float(num_samples)*100:.2f}")
+
+    model.train()
+
+check_accuracy(train_loader, model)
+check_accuracy(test_loader, model)
