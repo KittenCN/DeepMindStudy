@@ -166,7 +166,7 @@ class mnist_net(nn.Module):
         return x
 
 # net = mnist_net().to(device)
-net = alexnet().to(device)
+net = mnist_net().to(device)
 print(net)
 loss = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(net.parameters(), lr=0.001)
