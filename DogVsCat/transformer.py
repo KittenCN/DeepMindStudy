@@ -24,6 +24,13 @@ base_dir = sys.path[0]
 train_dir = r'data\DogVsCat\data\cats_and_dogs_small\train'
 test_dir = r'data\DogVsCat\data\cats_and_dogs_small\test'
 animal_list = ['cats', 'dogs']
+splitsig = "\\"
+pthfile = f'./model/vit_{batch_size}.pth'
+
+if platform.system() == "Windows":
+    splitsig = "\\"
+else:
+    splitsig = "/"
 
 train_transform = transforms.Compose(
     [
@@ -62,10 +69,6 @@ class CatsDogsDataset(Dataset):
         img_path = self.file_list[idx]
         img = Image.open(img_path)
         img_transformed = self.transform(img)
-        if platform.system() == "Windows":
-            splitsig = "\\"
-        else:
-            splitsig = "/"
         label = img_path.split(splitsig)[-1].split(".")[0]
         if label == "cat":
             label = 0
@@ -109,12 +112,11 @@ def PreProcess(mode, RandomPlots=False):
     if mode == "train":
         train_list = []
         for item in animal_list:
-            train_list += (glob.glob(os.path.join(train_dir + '\\' + item, "*.jpg")))
+            train_list += (glob.glob(os.path.join(train_dir + splitsig + item, "*.jpg")))
+        if len(train_list) == 0:
+            print("train data is null...")
+            exit(0)
         print("Loading train data done.")
-        if platform.system() == "Windows":
-            splitsig = "\\"
-        else:
-            splitsig = "/"
         labels = [path.split(splitsig)[-1].split(".")[0] for path in train_list]
 
         if RandomPlots:
@@ -132,7 +134,10 @@ def PreProcess(mode, RandomPlots=False):
     else:
         test_list = []
         for item in animal_list:
-            test_list += (glob.glob(os.path.join(test_dir + '\\' + item, "*.jpg")))
+            test_list += (glob.glob(os.path.join(test_dir + splitsig + item, "*.jpg")))
+        if len(test_list) == 0:
+            print("test data is null...")
+            exit(0)
         print("Loading test data done.")
         if RandomPlots:
             random_idx = np.random.randint(1, len(test_list), 9)
@@ -281,9 +286,16 @@ class ViT(nn.Module):
     
 if __name__ == '__main__':
     seed_everything(42)
-
-    model = ViT(image_size=224, patch_size=batch_size, num_classes=2, dim=128, depth=12, heads=16, mlp_dim=2048).to(device)
+    
+    if(not os.path.exists(train_dir) and not os.path.exists(test_dir)):
+        print("dir error...")
+        exit(0)
+    
+    model = ViT(image_size=224, patch_size=32, num_classes=2, dim=128, depth=12, heads=16, mlp_dim=2048).to(device)
     print(model)
+    if os.path.isfile(pthfile):
+        model.load_state_dict(torch.load(pthfile))
+        print("load model success")
     criterionFun = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     schedulerFun = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.7)
@@ -316,14 +328,15 @@ if __name__ == '__main__':
                     acc = (output.argmax(dim=1) == label).float().mean()
                     val_loss += loss / len(val_loader)
                     val_acc += acc / len(val_loader)
+            print()
             print(f'Epoch {epoch + 1}/{epochs} train loss: {epoch_loss:.4f} train acc: {epoch_accuracy:.4f} val loss: {val_loss:.4f} val acc: {val_acc:.4f}')
             schedulerFun.step()
-        torch.save(model.state_dict(), f'./model/vit_{batch_size}.pth')
+        torch.save(model.state_dict(), pthfile)
         print('model saved')
 
     print("test start")
-    model = ViT(image_size=224, patch_size=batch_size, num_classes=2, dim=128, depth=12, heads=12, mlp_dim=2048).to(device)
-    model.load_state_dict(torch.load('./model/vit_{batch_size}.pth', map_location=device))
+    model = ViT(image_size=224, patch_size=32, num_classes=2, dim=128, depth=12, heads=12, mlp_dim=2048).to(device)
+    model.load_state_dict(torch.load(pthfile, map_location=device))
     test_loader = getDataLoader('test')
     result = []
     with torch.no_grad():
