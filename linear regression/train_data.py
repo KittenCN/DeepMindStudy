@@ -10,23 +10,24 @@ use_gpu = torch.cuda.is_available()
 class linear_net(nn.Module):
     def __init__(self):
         super(linear_net, self).__init__()
-        # self.linear = nn.Linear(in_features=1, out_features=1) # 全连接层  
-        self.fc1 = nn.Linear(in_features=1, out_features=16)
-        self.fc2 = nn.Linear(in_features=16, out_features=32)
-        self.fc3 = nn.Linear(in_features=32, out_features=64)
-        self.fc4 = nn.Linear(in_features=64, out_features=1)
+        self.linear = nn.Linear(in_features=1, out_features=1) # 全连接层  
+        # self.fc1 = nn.Linear(in_features=1, out_features=16)
+        # self.fc2 = nn.Linear(in_features=16, out_features=32)
+        # self.fc3 = nn.Linear(in_features=32, out_features=64)
+        # self.fc4 = nn.Linear(in_features=64, out_features=1)
 
     def forward(self, x):
-        # return self.linear(x) 
-        x = self.fc1(x)
-        x = F.relu(x)
-        x = self.fc2(x)
-        x = F.relu(x)
-        x = self.fc3(x)
-        x = F.relu(x)
-        x = self.fc4(x)
-        return x
+        return self.linear(x) 
+        # x = self.fc1(x)
+        # x = F.relu(x)
+        # x = self.fc2(x)
+        # x = F.relu(x)
+        # x = self.fc3(x)
+        # x = F.relu(x)
+        # x = self.fc4(x)
+        # return x
 if __name__ == "__main__":
+    # create new data
     a = 10
     b = 15
     c = 25
@@ -35,9 +36,9 @@ if __name__ == "__main__":
     x = torch.randn(num).view(-1, 1)  # [ ?, 1]
     # hot_pixel = num / random.randint(0, 10)
     hot_pixel = 0
-    y = a * x * x + b
+    y = a * x + b   # y = a1*x1 + a2*x2 + a3*x3 + b
+    # 对数据一致性打包
     dataset = TensorDataset(x, y)
-
     data_loader = torch.utils.data.DataLoader(dataset, shuffle=True, batch_size=64)
     epochs = 1000
     lr = 1e-3
